@@ -1,23 +1,21 @@
+Dir["./lib/pieces/*.rb"].each { |file| require file }
+require_relative "display.rb"
+require "pry"
+
 class Board
+  include Display
   attr_accessor :board
-  RANKS = ("1".."8").to_a
-  FILES = ("A".."H").to_a
 
   def initialize
-    @board = Array.new(8,".") { Array.new(8,".") }
+    @board = Array.new(8) { Array.new(8, NilPiece.new("")) }
+    setup_board()
   end
 
-  def display_board()
-    print "\t"
-    print FILES.join("\t")
-    print ("\n\n")
-    puts
-    @board.to_enum.with_index.reverse_each do |row, i|
-      print RANKS[i]
-      print "\t"
-      print row.join("\t")
-      print "\n\n"
-      puts
-    end
+  def unoccupied?(position)
+    @board[position[0]][position[1]].class == NilPiece
+  end
+
+  def move(start_pos, end_pos)
+    
   end
 end
