@@ -18,45 +18,64 @@ class Board
     case piece
     when Rook, Queen, Bishop
       (1..7).each do |val|
-        piece.moves << step_move(start_pos, range, val)
+        piece.moves << slide_move(start_pos, range, val)
       end
-    when King, Knight, Pawn
-      piece.moves << step_move(start_pos, range, 1)
+    when King
+      piece.moves << jump_move(start_pos, range, 1)
+    when Pawn
+        piece.moves << pawn_move(start_pos, range)
+    when Knight
+      piece.moves << jump_move(start_pos, range, 1)
     end
     piece.moves = piece.moves.flatten!.each_slice(2).to_a
     valid_moves(start_pos, piece.moves).uniq
   end
 
-  def step_move(start_pos, range, multiplier)
-    move_block = []
-    range.each_with_index do |dir_arr, index|
-      move_block << start_pos.map.with_index { |v, i| v += dir_arr[i] * multiplier }
-    end
+  def slide_move(start_pos, range, multiplier)
+    move_block = jump_move(start_pos, range, multiplier)
     move_block.each_with_index do |arr, idx|
-      if !unoccupied?(arr)
+      unless empty_square?(arr)
         range.delete_at(idx)
       end
     end
     move_block.flatten.each_slice(2).to_a
   end
 
+  def jump_move(start_pos, range, multiplier)
+    move_block = []
+    range.each_with_index do |dir_arr, index|
+      move_block << start_pos.map.with_index { |v, i| v += dir_arr[i] * multiplier }
+    end
+    move_block
+  end
+
+  def pawn_move(start_pos, range)
+    all_moves = valid_moves(start_pos, jump_move(start_pos, range, 1))
+    all_moves[1..2].each_with_index do |arr, idx|
+      all_moves[1..2].delete_at(idx) if (empty_square?(arr) || friendly_fire?(start_pos, arr))
+    end
+    all_moves.shift unless empty_square?(all_moves[0])
+    all_moves
+  end
+
   def valid_moves(start_pos, all_moves)
     all_moves.select { |arr| arr if (arr.all? { |val| (val >= 0 && val < 8) }) } #within board
-      .select { |arr| opponent?(start_pos, arr) } #is opponent?
+      .select { |arr| !friendly_fire?(start_pos, arr) } #is friendly_fire?
       .reject { |arr| arr.empty? }
   end
 
-  def unoccupied?(position)
+  def empty_square?(position)
     @board[position[0]][position[1]].class == NilPiece
   end
 
-  def opponent?(start_pos, end_pos)
-    @board[start_pos[0]][start_pos[1]].color != @board[end_pos[0]][end_pos[1]].color
+  def friendly_fire?(start_pos, end_pos)
+    @board[start_pos[0]][start_pos[1]].color == @board[end_pos[0]][end_pos[1]].color
   end
 
   def move(start_pos, end_pos)
-    # Move piece
     piece = @board[start_pos[0]][start_pos[1]]
+
+    # Move piece if end position is valid
     if possible_moves(start_pos).any? { |arr| arr == end_pos }
       @board[end_pos[0]][end_pos[1]] = piece
       @board[start_pos[0]][start_pos[1]] = NilPiece.new("")
