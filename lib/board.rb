@@ -23,7 +23,7 @@ class Board
     when King
       piece.moves << jump_move(start_pos, range, 1)
     when Pawn
-        piece.moves << pawn_move(start_pos, range)
+      piece.moves << pawn_move(start_pos, range)
     when Knight
       piece.moves << jump_move(start_pos, range, 1)
     end
@@ -50,12 +50,23 @@ class Board
   end
 
   def pawn_move(start_pos, range)
-    all_moves = valid_moves(start_pos, jump_move(start_pos, range, 1))
-    all_moves[1..2].each_with_index do |arr, idx|
-      all_moves[1..2].delete_at(idx) if (empty_square?(arr) || friendly_fire?(start_pos, arr))
-    end
-    all_moves.shift unless empty_square?(all_moves[0])
-    all_moves
+    all_moves = jump_move(start_pos, range, 1).select { |arr| arr if (arr.all? { |val| (val >= 0 && val < 8) }) }
+
+    #Isolate and filter diagonal movements
+    diagonal_moves = all_moves.select { |arr| arr[1] != start_pos[1] }
+    all_moves = (all_moves - diagonal_moves)
+    diagonal_moves.reject! { |arr| (empty_square?(arr) || friendly_fire?(start_pos, arr)) }
+
+    # Remove two-step if pawn has been previously moved
+    all_moves.pop() unless @board[start_pos[0]][start_pos[1]].unmoved
+
+    #Add in diagonal attacks if applicable
+    all_moves.push(diagonal_moves) unless diagonal_moves.empty?
+
+    #Prevent default movement if position occupied
+    all_moves.shift unless empty_square?(all_moves.first)
+
+    return all_moves
   end
 
   def valid_moves(start_pos, all_moves)
