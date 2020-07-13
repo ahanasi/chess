@@ -1,5 +1,4 @@
 require "pry"
-require_relative "sliding.rb"
 
 class Piece
   attr_accessor :color, :moves, :move_range, :icon, :unmoved
