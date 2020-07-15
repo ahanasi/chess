@@ -14,7 +14,7 @@ class Board
   def possible_moves(start_pos)
     piece = @board[start_pos[0]][start_pos[1]]
     piece.moves = []
-    range = piece.move_range
+    range = piece.move_range.dup
     case piece
     when Rook, Queen, Bishop
       (1..7).each do |val|
@@ -40,7 +40,7 @@ class Board
       end
     end
     range.reject!.with_index { |e, i| to_delete.include? i }
-    move_block.reject{|arr| arr.length < 2}.flatten.each_slice(2).to_a
+    move_block.reject { |arr| arr.length < 2 }.flatten.each_slice(2).to_a
   end
 
   def jump_move(start_pos, range, multiplier)
@@ -96,8 +96,10 @@ class Board
 
     # Move piece if end position is valid
     if possible_moves(start_pos).any? { |arr| arr == end_pos }
+      temp = @board[end_pos[0]][end_pos[1]]
       @board[end_pos[0]][end_pos[1]] = piece
       @board[start_pos[0]][start_pos[1]] = NilPiece.new("")
     end
+    return temp if temp
   end
 end
