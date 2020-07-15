@@ -32,13 +32,15 @@ class Board
   end
 
   def slide_move(start_pos, range, multiplier)
+    to_delete = []
     move_block = jump_move(start_pos, range, multiplier)
     move_block.each_with_index do |arr, idx|
       unless empty_square?(arr)
-        range.delete_at(idx)
+        to_delete << idx
       end
     end
-    move_block.flatten.each_slice(2).to_a
+    range.reject!.with_index { |e, i| to_delete.include? i }
+    move_block.reject{|arr| arr.length < 2}.flatten.each_slice(2).to_a
   end
 
   def jump_move(start_pos, range, multiplier)
@@ -70,21 +72,27 @@ class Board
   end
 
   def valid_moves(start_pos, all_moves)
-    all_moves.select { |arr| arr if (arr.all? { |val| (val >= 0 && val < 8) }) } #within board
+    all_moves.select { |arr| arr if ((arr.all? { |val| (val >= 0 && val < 8) }) && arr.length == 2) } #within board
       .select { |arr| !friendly_fire?(start_pos, arr) } #is friendly_fire?
       .reject { |arr| arr.empty? }
   end
 
   def empty_square?(position)
-    @board[position[0]][position[1]].class == NilPiece
+    position.select! { |val| (val >= 0 && val < 8) }
+    if position.length == 2
+      return true if (@board[position[0]][position[1]].class == NilPiece)
+    end
+    return false
   end
 
   def friendly_fire?(start_pos, end_pos)
     @board[start_pos[0]][start_pos[1]].color == @board[end_pos[0]][end_pos[1]].color
   end
 
-  def move(start_pos, end_pos)
+  def move(start_pos, end_pos, color)
     piece = @board[start_pos[0]][start_pos[1]]
+    return false if piece.class == NilPiece
+    return false if piece.color != color
 
     # Move piece if end position is valid
     if possible_moves(start_pos).any? { |arr| arr == end_pos }
