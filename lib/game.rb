@@ -2,11 +2,13 @@ require_relative "board.rb"
 require "pry"
 
 class Game
-  attr_accessor :board, :is_white, :player_1, :player_2
+  attr_accessor :board, :is_white, :capture, :current_move
 
   def initialize
     @board = Board.new()
     @is_white = true
+    @capture = Hash.new { |hsh, key| hsh[key] = [] }
+    @current_move = []
   end
 
   def self.driver
@@ -21,7 +23,6 @@ class Game
       play_round()
       count += 1
     end
-    
   end
 
   def play_round
@@ -29,25 +30,43 @@ class Game
     @board.display_board
     if @is_white
       puts "White's move"
+      puts "Captured Pieces: ".concat(
+        @capture[:white].reduce(" ") do |k, piece|
+          k + " " + piece.icon
+        end
+      )
     else
       puts "Black's move"
+      puts "Captured Pieces: ".concat(
+        @capture[:black].reduce("") do |k, piece|
+          k + " " + piece.icon
+        end
+      )
     end
     puts "(Ex: A3 B4 moves the piece at A3 to B4)"
 
     #Get valid move from user
     loop do
-      position = get_position()
-      break if @board.move(position[0], position[1], turn_color)
-      position = []
+      @current_move = get_position()
+      captured_piece = @board.move(@current_move[0], @current_move[1], turn_color)
+      if captured_piece
+        capture(captured_piece)
+        break
+      end
+      @current_move = []
       puts "Please enter a valid move"
     end
-
     @is_white = !@is_white
-    
   end
 
   def turn_color
     return @is_white ? "white" : "black"
+  end
+
+  def capture(captured_piece)
+    unless captured_piece.class == NilPiece
+      @is_white ? @capture[:white].push(captured_piece) : @capture[:black].push(captured_piece)
+    end
   end
 
   def en_passant
