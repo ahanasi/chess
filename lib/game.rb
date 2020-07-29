@@ -68,6 +68,8 @@ class Game
       puts "Please enter a valid move"
     end
 
+    #Check for CHECK
+    
     @is_white = !@is_white
   end
 
@@ -127,6 +129,8 @@ class Game
   end
 
   def check
+    all_moves = @board.possible_moves(@current_move[1])
+    return king_pos = all_moves.select { |square| get_piece(square).class == King }
   end
 
   def checkmate
@@ -136,4 +140,3 @@ class Game
   end
 end
 
-Game.driver()
