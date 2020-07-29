@@ -100,6 +100,20 @@ class Board
       @board[end_pos[0]][end_pos[1]] = piece
       @board[start_pos[0]][start_pos[1]] = NilPiece.new("")
     end
-    return temp if temp
+
+    piece.unmoved = false if piece.unmoved
+
+    return temp unless temp.nil?
+
+    # if piece.class == Pawn 
+    #   if (end_pos[0] - start_pos[0] == 2) && piece.unmoved
+    #     piece.unmoved = 1
+    #   else
+    #     piece.unmoved = false
+    #   end
+    # else
+    #   piece.unmoved = false
+    # end
+    # return temp if temp
   end
 end
