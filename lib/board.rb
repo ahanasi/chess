@@ -28,7 +28,7 @@ class Board
       piece.moves << jump_move(start_pos, range, 1)
     end
     piece.moves = piece.moves.flatten!.each_slice(2).to_a
-    valid_moves(start_pos, piece.moves).uniq
+    piece.moves = valid_moves(start_pos, piece.moves).uniq
   end
 
   def slide_move(start_pos, range, multiplier)
