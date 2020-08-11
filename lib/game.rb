@@ -1,15 +1,28 @@
 require_relative "board.rb"
 require "pry"
 
+class Array
+  def coordinates(element)
+    each_with_index do |subarray, i|
+      j = subarray.index(element)
+      return i, j if j
+    end
+    nil
+  end
+end
+
 class Game
-  attr_accessor :board, :is_white, :capture, :current_move, :current_piece
+  attr_accessor :board, :turn, :capture, :current_move, :current_piece, :current_set, :previous_set, :checked_king
 
   def initialize
     @board = Board.new()
-    @is_white = true
+    @turn = 0
     @capture = Hash.new { |hsh, key| hsh[key] = [] }
     @current_move = []
     @current_piece = NilPiece.new("")
+    @current_set = []
+    @previous_set = []
+    @checked_king = false
   end
 
   def self.driver
@@ -20,7 +33,8 @@ class Game
 
   def play_game
     count = 0
-    until count > 10
+    @board.initialize_moves()
+    until count > 30
       play_round()
       count += 1
     end
@@ -29,7 +43,11 @@ class Game
   def play_round
     system "clear"
     @board.display_board
-    if @is_white
+
+    #Get current_set
+    @current_set = curr_set().flatten(1)
+
+    if @turn % 2 == 0
       puts "White's move"
       puts "Captured Pieces: ".concat(
         @capture[:white].reduce(" ") do |k, piece|
@@ -49,13 +67,54 @@ class Game
     #Get valid move from user
 
     loop do
-      @current_move = get_position()
-      @current_piece = @board.board[@current_move[0][0]][@current_move[0][1]]
+
+      #Is the king in check?
+      if @checked_king
+        #Check for checkmate
+        if !move_king_after_check && !capture_checking_piece 
+          if !block_checking_piece
+            puts "You have been checkmated!"
+            return
+          end
+        end
+        puts "You are in check!"
+        check_loop()
+        @checked_king = false
+      else
+        @current_move = get_position()
+        @current_piece = get_piece(@current_move[0])
+      end
 
       #Check for en_passant
       if @current_piece.class == Pawn && @current_piece.cant_ep == false && ep_pawn()
+        @current_piece.cant_ep = true
         result = en_passant()
         break if result
+      end
+
+      #If current piece is king, check for valid move
+      if @current_piece.class == King
+        loop do
+          temp = @board.move(@current_move[0], @current_move[1], turn_color())
+          if temp
+            update_moves(@previous_set)
+            if @previous_set.any? { |piece| piece.moves.include?(@current_move[1]) }
+              @board.board[@current_move[0][0]][@current_move[0][1]] = @current_piece
+              @board.board[@current_move[1][0]][@current_move[1][1]] = temp
+
+              puts "Please enter a valid move"
+              @current_move = get_position()
+              @current_piece = get_piece(@current_move[0])
+              if @current_piece.class != King
+                break
+              end
+            else
+              @board.board[@current_move[0][0]][@current_move[0][1]] = @current_piece
+              @board.board[@current_move[1][0]][@current_move[1][1]] = temp
+              break
+            end
+          end
+        end
       end
 
       captured_piece = @board.move(@current_move[0], @current_move[1], turn_color)
@@ -68,24 +127,28 @@ class Game
       puts "Please enter a valid move"
     end
 
+    #Update moves for current set
+    update_moves(@current_set)
+    @previous_set = @current_set
+
     #Check for CHECK
-    
-    @is_white = !@is_white
+    @checked_king = check(@current_set) if check(@current_set)
+
+    @turn += 1
   end
 
   def turn_color
-    return @is_white ? "white" : "black"
+    return @turn % 2 == 0 ? "white" : "black"
   end
 
   def capture(captured_piece)
     unless captured_piece.class == NilPiece
-      @is_white ? @capture[:white].push(captured_piece) : @capture[:black].push(captured_piece)
+      (@turn % 2 == 0) ? @capture[:white].push(captured_piece) : @capture[:black].push(captured_piece)
     end
   end
 
   def en_passant()
     temp = ep_pawn()
-    @current_piece.cant_ep = true
     if temp[0] == get_piece([@current_move[0][0], @current_move[1][1]])
       capture(temp[0])
       @board.board[current_move[1][0]][current_move[1][1]] = @current_piece
@@ -128,9 +191,35 @@ class Game
     return @board.board[position[0]][position[1]]
   end
 
-  def check
-    all_moves = @board.possible_moves(@current_move[1])
-    return king_pos = all_moves.select { |square| get_piece(square).class == King }
+  def check(set)
+    # all_moves = @board.possible_moves(@current_move[1])
+    # return king_pos = all_moves.select { |square| get_piece(square).class == King }
+    king_pos = []
+    set.each do |piece|
+      piece.moves.each do |pos|
+        if get_piece(pos).class == King && get_piece(pos).color != piece.color
+          return king_pos = pos
+        end
+      end
+    end
+    return false
+  end
+
+  def curr_set
+    @board.board.map do |row|
+      row.reject { |piece| piece.class == NilPiece || piece.color != turn_color || @capture.values.include?(piece) }
+    end
+  end
+
+  def update_moves(chess_set)
+    chess_set.each do |piece|
+      unless @board.board.coordinates(piece).nil?
+        @board.possible_moves(@board.board.coordinates(piece))
+      end
+      if piece.class == Pawn && piece.moves.size > 1
+        piece.moves.reject! { |move| move[1] == @board.board.coordinates(piece)[1] }
+      end
+    end
   end
 
   def checkmate
@@ -138,5 +227,170 @@ class Game
 
   def stalemate
   end
+
+  def check_loop
+    until find_checking_pieces().empty?
+      @current_move = get_position()
+      @current_piece = get_piece(@current_move[0])
+
+      temp = @board.move(@current_move[0], @current_move[1], turn_color)
+      if temp
+        update_moves(@previous_set)
+        if @previous_set.any? { |piece| piece.moves.include?(@current_move[1]) }
+          @board.board[@current_move[0][0]][@current_move[0][1]] = @current_piece
+          @board.board[@current_move[1][0]][@current_move[1][1]] = temp
+          @current_piece = []
+        else
+          @board.board[@current_move[0][0]][@current_move[0][1]] = @current_piece
+          @board.board[@current_move[1][0]][@current_move[1][1]] = temp
+          break
+        end
+      end
+      puts "Please make a valid move"
+    end
+  end
+
+  def move_king_after_check
+    # Find all possible moves for checked king
+    king_pos = @checked_king
+    king = get_piece(king_pos)
+    king_moves = @board.possible_moves(king_pos)
+    return false if king_moves.empty?
+
+    result_arr = []
+
+    #For each move, temporarily move king to the possible move location
+    king_moves.each do |pos|
+      temp = @board.move(king_pos, pos, turn_color())
+
+      #Update previous set moves
+      update_moves(@previous_set)
+
+      #Check if king is in check and append result to array
+      result_arr << check(@previous_set)
+      #Return pieces to original position
+      @board.board[king_pos[0]][king_pos[1]] = king
+      @board.board[pos[0]][pos[1]] = temp
+      update_moves(@previous_set)
+    end
+
+    # Return false if all possible moves keep him in check
+    return false if result_arr.none? { |val| val == false }
+    return true
+  end
+
+  def capture_checking_piece
+    #Find out location of all pieces that could put the king in check
+    enemy_pos = find_checking_pieces()
+
+    #Check if any checking pieces can be captured by the current set
+    return enemy_pos.any? { |arr| @current_set.any? { |piece| piece.moves.include?(arr) } }
+  end
+
+  def block_checking_piece
+    enemy_pos = find_checking_pieces()
+    rooks = enemy_pos.select { |pos| get_piece(pos).class == Rook }
+    bishops = enemy_pos.select { |pos| get_piece(pos).class == Bishop }
+    queen = enemy_pos.select { |pos| get_piece(pos).class == Queen }
+
+
+    return false if (rooks.size > 1)
+    return false if (bishops.size > 1)
+    return false if ((rooks.size == 1 || bishops.size == 1) && queen.size == 1)
+    return false if (rooks.size == 1 && bishops.size == 1)
+
+    result = []
+
+    if rooks
+      rooks.each do |rook|
+        rook_moves = @board.possible_moves(rook)
+        rook_moves = rook_moves - @checked_king
+
+        rook_moves = rook_moves.select { |move| (move[0] == @checked_king[0]) || (move[1] == @checked_king[1]) }
+        result = rook_moves.any? { |arr| @current_set.any? { |piece| piece.moves.include?(arr) } }
+      end
+      return true if result
+    end
+
+    if bishops
+      bishops.each do |bishop|
+        bishop_moves = @board.possible_moves(bishop)
+        bishop_moves = bishop_moves - @checked_king
+
+        #Find bishop moves in applicable quadrant
+        if @checked_king[0] > bishop[0]
+          if @checked_king[1] > bishop[1]
+            #First Quadrant
+            bishop_moves.select! { |move| (move[0] > bishop[0]) && move[1] > bishop[1] }
+          else
+            #Second Quadrant
+            bishop_moves.select! { |move| (move[0] > bishop[0]) && move[1] < bishop[1] }
+          end
+        else
+          if @checked_king[1] < bishop[1]
+            #Third Quadrant
+            bishop_moves.select! { |move| (move[0] < bishop[0]) && move[1] < bishop[1] }
+          else
+            #Fourth Quadrant
+            binding.pry
+            bishop_moves.select! { |move| (move[0] > bishop[0]) && move[1] < bishop[1] }
+          end
+        end
+
+        binding.pry
+        result = bishop_moves.any? { |arr| @current_set.any? { |piece| piece.moves.include?(arr) } }
+      end
+      return true if result
+    end
+
+    if queen
+      queen_moves = @board.possible_moves(queen)
+      queen_moves = queen_moves - @checked_king
+
+      if valid_moves = queen_moves.select { |move| move[0] == @checked_king[0] }
+        result = valid_moves.any? { |arr| @current_set.any? { |piece| piece.moves.include?(arr) } }
+      elsif valid_moves = queen_moves.select { |move| move[1] == @checked_king[1] }
+        result = valid_moves.any? { |arr| @current_set.any? { |piece| piece.moves.include?(arr) } }
+      else
+        if @checked_king[0] > queen[0]
+          if @checked_king[1] > queen[1]
+            #First Quadrant
+            queen_moves.select! { |move| (move[0] > queen[0]) && move[1] > queen[1] }
+          else
+            #Second Quadrant
+            queen_moves.select! { |move| (move[0] > queen[0]) && move[1] < queen[1] }
+          end
+        else
+          if @checked_king[1] < queen[1]
+            #Third Quadrant
+            queen_moves.select! { |move| (move[0] < queen[0]) && move[1] < queen[1] }
+          else
+            #Fourth Quadrant
+            queen_moves.select! { |move| (move[0] > queen[0]) && move[1] < queen[1] }
+          end
+        end
+        result = queen_moves.any? { |arr| @current_set.any? { |piece| piece.moves.include?(arr) } }
+      end
+      return true if result
+    end
+
+    return false
+  end
+
+  def find_checking_pieces
+    enemy_pos = []
+    @previous_set.each do |piece|
+      piece.moves.each do |pos|
+        if get_piece(pos).class == King && get_piece(pos).color != piece.color
+          enemy_pos << @board.board.coordinates(piece)
+        end
+      end
+    end
+    return enemy_pos
+  end
+
+  def move_king_temp
+  end
 end
 
+Game.driver()
