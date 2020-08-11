@@ -71,7 +71,7 @@ class Game
       #Is the king in check?
       if @checked_king
         #Check for checkmate
-        if !move_king_after_check && !capture_checking_piece 
+        if !move_king_after_check && !capture_checking_piece
           if !block_checking_piece
             puts "You have been checkmated!"
             return
@@ -127,6 +127,12 @@ class Game
       puts "Please enter a valid move"
     end
 
+    #If current piece is a pawn, check for promotion
+    if @current_piece.class == Pawn && promotion()
+      @board.board[@current_move[1][0]][@current_move[1][1]] = promotion()
+      @current_set = curr_set().flatten(1)
+    end
+
     #Update moves for current set
     update_moves(@current_set)
     @previous_set = @current_set
@@ -170,6 +176,34 @@ class Game
         .select { |piece| piece if (piece.class == Pawn && piece.color != turn_color) }
     end
     return pawn unless pawn.nil?
+    return false
+  end
+
+  def promotion
+    end_pos = @current_move[1]
+    if (end_pos[0] == 0 && turn_color == "black") || (end_pos[0] == 7 && turn_color == "white")
+      puts "Promote your pawn to a Queen (Q), Knight (K) , Rook (R) or Bishop (B)."
+      puts "Type in Q, K, R, or B. "
+      promoted_piece = gets.chomp.upcase
+      until promoted_piece.match(/^[qQkKrRbB]$/)
+        puts "Type in Q, K, R, or B. "
+        promoted_piece = gets.chomp.upcase
+      end
+
+      case promoted_piece
+      when "Q"
+        promoted_piece = Queen.new(turn_color)
+      when "K"
+        promoted_piece = Knight.new(turn_color)
+      when "R"
+        promoted_piece = Rook.new(turn_color)
+      when "B"
+        promoted_piece = Bishop.new(turn_color)
+      else
+        promoted_piece = false
+      end
+      return promoted_piece
+    end
     return false
   end
 
@@ -220,9 +254,6 @@ class Game
         piece.moves.reject! { |move| move[1] == @board.board.coordinates(piece)[1] }
       end
     end
-  end
-
-  def checkmate
   end
 
   def stalemate
@@ -292,7 +323,6 @@ class Game
     rooks = enemy_pos.select { |pos| get_piece(pos).class == Rook }
     bishops = enemy_pos.select { |pos| get_piece(pos).class == Bishop }
     queen = enemy_pos.select { |pos| get_piece(pos).class == Queen }
-
 
     return false if (rooks.size > 1)
     return false if (bishops.size > 1)
@@ -388,9 +418,4 @@ class Game
     end
     return enemy_pos
   end
-
-  def move_king_temp
-  end
 end
-
-Game.driver()
