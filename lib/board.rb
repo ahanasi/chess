@@ -1,18 +1,26 @@
+# typed: true
+require "pry"
+require "sorbet-runtime"
 Dir["./lib/pieces/*.rb"].each { |file| require file }
 require_relative "display.rb"
-require "pry"
+
 
 class Board
   include Display
-  attr_accessor :board
+  include Kernel
+  extend T::Sig
+  attr_accessor :board, :captured_piece
 
+  sig {void}
   def initialize
-    @board = Array.new(8) { Array.new(8, NilPiece.new("")) }
+    @board = T.let(Array.new(8) { Array.new(8, NilPiece.new("")) }, T::Array[T::Array[Piece]])
+    @captured_piece = T.let(NilPiece.new(""), Piece)
     setup_board()
   end
 
+  sig {params(start_pos: T::Array[Integer]).returns(T::Array[T::Array[Integer]])}
   def possible_moves(start_pos)
-    piece = @board[start_pos[0]][start_pos[1]]
+    piece = @board.fetch(start_pos.fetch(0)).fetch(start_pos.fetch(1))
     piece.moves = []
     range = piece.move_range.dup
     case piece
@@ -31,6 +39,7 @@ class Board
     piece.moves = valid_moves(start_pos, piece.moves).uniq
   end
 
+  sig  {params(start_pos: T::Array[Integer], range: T::Array[T::Array[Integer]], multiplier: Integer).returns(T::Array[T::Array[Integer]])}
   def slide_move(start_pos, range, multiplier)
     to_delete = []
     move_block = jump_move(start_pos, range, multiplier)
@@ -43,27 +52,29 @@ class Board
     move_block.reject { |arr| arr.length < 2 }.flatten.each_slice(2).to_a
   end
 
+  sig  {params(start_pos: T::Array[Integer], range: T::Array[T::Array[Integer]], multiplier: Integer).returns(T::Array[T::Array[Integer]])}
   def jump_move(start_pos, range, multiplier)
     move_block = []
     range.each_with_index do |dir_arr, index|
-      move_block << start_pos.map.with_index { |v, i| v += dir_arr[i] * multiplier }
+      move_block << start_pos.map.with_index { |v, i| v += dir_arr.fetch(i) * multiplier }
     end
     move_block
   end
 
+  sig  {params(start_pos: T::Array[Integer], range: T::Array[T::Array[Integer]]).returns(T::Array[T::Array[Integer]])}
   def pawn_move(start_pos, range)
-    all_moves = jump_move(start_pos, range, 1).select { |arr| arr if (arr.all? { |val| (val >= 0 && val < 8) }) }
+    all_moves = T.let(jump_move(start_pos, range, 1).select { |arr| arr if (arr.all? { |val| (val >= 0 && val < 8) }) }, T::Array[T::Array[Integer]])
 
     #Isolate and filter diagonal movements
-    diagonal_moves = all_moves.select { |arr| arr[1] != start_pos[1] }
+    diagonal_moves = T.let(all_moves.select { |arr| arr.fetch(1) != start_pos.fetch(1) }, T::Array[T::Array[Integer]])
     all_moves = (all_moves - diagonal_moves)
     diagonal_moves.reject! { |arr| (empty_square?(arr) || friendly_fire?(start_pos, arr)) }
 
     # Remove two-step if pawn has been previously moved
-    all_moves.pop() unless @board[start_pos[0]][start_pos[1]].unmoved
+    all_moves.pop() unless @board.fetch(start_pos.fetch(0)).fetch(start_pos.fetch(1)).unmoved
 
     #Add in diagonal attacks if applicable
-    all_moves.push(diagonal_moves) unless diagonal_moves.empty?
+    (all_moves + diagonal_moves) unless diagonal_moves.empty?
 
     #Prevent default movement if position occupied
     all_moves.shift unless empty_square?(all_moves.first)
@@ -71,52 +82,47 @@ class Board
     return all_moves
   end
 
+  sig  {params(start_pos: T::Array[Integer], all_moves: T::Array[T::Array[Integer]]).returns(T::Array[T::Array[Integer]])}
   def valid_moves(start_pos, all_moves)
     all_moves.select { |arr| arr if ((arr.all? { |val| (val >= 0 && val < 8) }) && arr.length == 2) } #within board
       .select { |arr| !friendly_fire?(start_pos, arr) } #is friendly_fire?
       .reject { |arr| arr.empty? }
   end
 
+  sig {params(position: T.nilable(T::Array[Integer])).returns(T::Boolean)}
   def empty_square?(position)
+    return false if position.nil?
     position.select! { |val| (val >= 0 && val < 8) }
     if position.length == 2
-      return true if (@board[position[0]][position[1]].class == NilPiece)
+      return true if (@board.fetch(position.fetch(0)).fetch(position.fetch(1)).class == NilPiece)
     end
     return false
   end
 
+  sig {params(start_pos: T::Array[Integer], end_pos: T::Array[Integer]).returns(T::Boolean)}
   def friendly_fire?(start_pos, end_pos)
-    @board[start_pos[0]][start_pos[1]].color == @board[end_pos[0]][end_pos[1]].color
+    @board.fetch(start_pos.fetch(0)).fetch(start_pos.fetch(1)).color == @board.fetch(end_pos.fetch(0)).fetch(end_pos.fetch(1)).color
   end
 
+  sig {params(start_pos: T::Array[Integer], end_pos: T::Array[Integer], color: String).returns(T::Boolean)}
   def move(start_pos, end_pos, color)
-    piece = @board[start_pos[0]][start_pos[1]]
+    piece = @board.fetch(start_pos.fetch(0)).fetch(start_pos.fetch(1))
     return false if piece.class == NilPiece
     return false if piece.color != color
 
     # Move piece if end position is valid
     if possible_moves(start_pos).any? { |arr| arr == end_pos }
-      temp = @board[end_pos[0]][end_pos[1]]
-      @board[end_pos[0]][end_pos[1]] = piece
-      @board[start_pos[0]][start_pos[1]] = NilPiece.new("")
+      @captured_piece = @board.fetch(end_pos.fetch(0)).fetch(end_pos.fetch(1))
+      T.must(@board[T.must(end_pos[0])])[T.must(end_pos[1])] = piece
+      T.must(@board[T.must(start_pos[0])])[T.must(start_pos[1])] = NilPiece.new("")
     end
 
-    piece.unmoved = false if piece.unmoved
+    piece.unmoved = false
 
-    return temp unless temp.nil?
-
-    # if piece.class == Pawn 
-    #   if (end_pos[0] - start_pos[0] == 2) && piece.unmoved
-    #     piece.unmoved = 1
-    #   else
-    #     piece.unmoved = false
-    #   end
-    # else
-    #   piece.unmoved = false
-    # end
-    # return temp if temp
+    return true
   end
 
+  sig {void}
   def initialize_moves
     [0,1,6,7].each do |row|
       (0..7).each do |col|

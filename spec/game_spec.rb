@@ -1,3 +1,5 @@
+# typed: ignore
+require "sorbet-runtime"
 require "./lib/game.rb"
 
 describe Game do
@@ -14,7 +16,7 @@ describe Game do
   end
 
   describe "#check" do
-    it "returns the position of the king in check" do
+    xit "returns the position of the king in check" do
       test = Game.new()
       test.board.board[4][4] = King.new("white")
       test.board.board[4][3] = Rook.new("black")
@@ -24,7 +26,7 @@ describe Game do
       expect(test.check(test.current_set)).to match_array([4, 4])
     end
 
-    it "ignores friendly fire" do
+    xit "ignores friendly fire" do
       test = Game.new()
       test.board.board[4][4] = King.new("white")
       test.board.board[4][3] = Rook.new("white")
@@ -32,7 +34,7 @@ describe Game do
       expect(test.check(test.current_set)).to be false
     end
 
-    it "works for pawns" do
+    xit "works for pawns" do
       test = Game.new()
       test.board.board[4][4] = King.new("black")
       test.board.board[3][3] = Pawn.new("white")
@@ -50,31 +52,31 @@ describe Game do
     test.current_move = [[],[7,1]]
     test.turn = 2  
 
-    it "promotes the pawn to a new Queen" do
+    xit "promotes the pawn to a new Queen" do
       orig_stdin = $stdin 
       $stdin = StringIO.new('Q') 
       expect(test.promotion().class).to be Queen
     end
 
-    it "promotes the pawn to a new Rook" do
+    xit "promotes the pawn to a new Rook" do
       orig_stdin = $stdin 
       $stdin = StringIO.new('R') 
       expect(test.promotion().class).to be Rook
     end
 
-    it "promotes the pawn to a new Bishop" do
+    xit "promotes the pawn to a new Bishop" do
       orig_stdin = $stdin 
       $stdin = StringIO.new('B') 
       expect(test.promotion().class).to be Bishop
     end
 
-    it "promotes the pawn to a new Knight" do
+    xit "promotes the pawn to a new Knight" do
       orig_stdin = $stdin 
       $stdin = StringIO.new('K') 
       expect(test.promotion().class).to be Knight
     end
 
-    it "does not promote pawn in wrong position" do
+    xit "does not promote pawn in wrong position" do
       test = Game.new()
       test.board.board[7][1] = Pawn.new("black")
       test.current_piece = test.board.board[7][1]
@@ -83,5 +85,22 @@ describe Game do
       expect(test.promotion()).to be false
     end
 
+  end
+
+  describe "#castling" do
+
+    it "works for unmoved king and rook" do
+      test = Game.new()
+
+      test.turn = 1  
+      test.previous_set = test.curr_set().flatten(1)
+      test.turn = 2
+      test.current_set = test.curr_set().flatten(1)
+
+      test.board.board[0][1] = NilPiece.new("")
+      test.board.board[0][2] = NilPiece.new("")
+
+      expect(test.castling).to be true
+    end
   end
 end

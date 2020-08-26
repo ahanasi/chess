@@ -1,13 +1,20 @@
-module Display
-  RANKS = ("1".."8").to_a
-  FILES = ("A".."H").to_a
-  PAWNS = [1, 6]
-  ROOKS = [0, 7]
-  KNIGHTS = [1, 6]
-  BISHOPS = [2, 5]
-  QUEENS = [3]
-  KINGS = [4]
+# typed: true
+require "sorbet-runtime"
 
+module Display
+  include Kernel
+  extend T::Sig
+
+  RANKS = T.let(("1".."8").to_a, T::Array[String])
+  FILES = T.let(("A".."H").to_a, T::Array[String])
+  PAWNS = T.let([1, 6], T::Array[Integer])
+  ROOKS = T.let([0, 7], T::Array[Integer])
+  KNIGHTS = T.let([1, 6], T::Array[Integer])
+  BISHOPS = T.let([2, 5], T::Array[Integer])
+  QUEENS = T.let([3], T::Array[Integer])
+  KINGS = T.let([4], T::Array[Integer])
+
+  sig {void}
   def setup_board()
     PAWNS.each do |val|
       @board[val].map! { |square| square = Pawn.new(is_first?(val, PAWNS)) }
@@ -23,10 +30,12 @@ module Display
     end
   end
 
+  sig {params(val: Integer, arr: T::Array[Integer]).returns(String)}
   def is_first?(val, arr)
     (val == arr.first) ? "white" : "black"
   end
 
+  sig {void}
   def display_board()
     print "\t"
     print FILES.join("\t")

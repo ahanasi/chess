@@ -1,3 +1,4 @@
+# typed: ignore
 require "./lib/board.rb"
 
 describe Board do
