@@ -104,21 +104,26 @@ class Board
   end
 
   sig {params(start_pos: T::Array[Integer], end_pos: T::Array[Integer], color: String).returns(T::Boolean)}
-  def move(start_pos, end_pos, color)
+  def can_move?(start_pos, end_pos, color)
     piece = @board.fetch(start_pos.fetch(0)).fetch(start_pos.fetch(1))
     return false if piece.class == NilPiece
     return false if piece.color != color
+    possible_moves(start_pos).any? { |arr| arr == end_pos }
+  end
 
-    # Move piece if end position is valid
-    if possible_moves(start_pos).any? { |arr| arr == end_pos }
-      @captured_piece = @board.fetch(end_pos.fetch(0)).fetch(end_pos.fetch(1))
-      T.must(@board[T.must(end_pos[0])])[T.must(end_pos[1])] = piece
-      T.must(@board[T.must(start_pos[0])])[T.must(start_pos[1])] = NilPiece.new("")
-    end
+  sig {params(start_pos: T::Array[Integer], end_pos: T::Array[Integer], color: String).void}
+  def move(start_pos, end_pos, color)
+    piece = @board.fetch(start_pos.fetch(0)).fetch(start_pos.fetch(1))
+    puts "MOVE FUNCTION START"
+
+    # Capture piece
+    @captured_piece = @board.fetch(end_pos.fetch(0)).fetch(end_pos.fetch(1))
+
+    #Move to final position
+    T.must(@board[T.must(end_pos[0])])[T.must(end_pos[1])] = piece
+    T.must(@board[T.must(start_pos[0])])[T.must(start_pos[1])] = NilPiece.new("")
 
     piece.unmoved = false
-
-    return true
   end
 
   sig {void}
