@@ -7,8 +7,8 @@ class Rook < Piece
 
   sig {params(color: String).void}
   def initialize(color)
+    super
     @move_range = [[0, 1], [0, -1], [1, 0], [-1, 0]]
     @icon = (color == "white") ? "♜" : "♖"
-    super
   end
 end

@@ -7,8 +7,8 @@ class Knight < Piece
 
   sig { params(color: String).void }
   def initialize(color)
+    super
     @move_range = [[2, 1], [2, -1], [-2, 1], [-2, -1], [1, 2], [-1, 2], [1, -2], [-1, -2]]
     @icon = (color == "white") ? "♞" : "♘"
-    super
   end
 end

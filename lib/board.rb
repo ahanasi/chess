@@ -1,5 +1,4 @@
 # typed: true
-require "pry"
 require "sorbet-runtime"
 Dir["./lib/pieces/*.rb"].each { |file| require file }
 require_relative "display.rb"

@@ -7,8 +7,8 @@ class Bishop < Piece
 
   sig {params(color: String).void}
   def initialize(color)
+    super
     @move_range = [[1, 1], [1, -1], [-1, 1], [-1, -1]]
     @icon = (color == "white") ? "♝" : "♗"
-    super
   end
 end

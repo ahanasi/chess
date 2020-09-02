@@ -1,7 +1,6 @@
 # typed: true
 require "sorbet-runtime"
 require_relative "board.rb"
-require "pry"
 
 class Array
   include Kernel
@@ -71,89 +70,13 @@ class Game
 
     #Get valid move from user
 
-    loop do
-
-      #Is the king in check?
-      if @king_checked
-        #Check for checkmate
-        if stalemate()
-          puts "You have been checkmated!"
-          return -1
-        end
-        puts "You are in check!"
-        check_loop()
-        @king_checked = false
-      elsif stalemate() && @current_set.all? { |piece| piece.moves.empty? }
-        puts "Stalemate! The game is a draw"
+    legal_move = 0
+    while legal_move == 0
+      puts "BEFORE GET_LEGAL_MOVE"
+      legal_move = get_legal_move()
+      if legal_move == -1
         return -1
-      else
-        user_input = get_user_input()
-        if user_input == "C"
-          castle()
-          break
-        else
-          @current_move = get_position(user_input)
-          @current_piece = get_piece(T.must(@current_move[0]))
-        end
       end
-
-      #Check for en_passant
-      definitely_pawn = T.cast(@current_piece,Pawn)
-      if @current_piece.class == Pawn && definitely_pawn.cant_ep == false && ep_pawn()
-        definitely_pawn.cant_ep = true
-        result = en_passant()
-        break if result
-      end
-
-      #Check for legal move
-      move_state = @current_piece.unmoved
-      until (find_checking_pieces().empty?) || !(find_checking_pieces()[0].nil?)
-        if @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
-          temp = @board.captured_piece
-
-          update_moves(@previous_set.reject { |piece| piece == get_piece(T.must(@current_move[1])) })
-          if (!find_checking_pieces().empty?) || (find_checking_pieces()[0].nil?)
-            @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
-            @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = temp
-
-            puts "Please enter a valid move 1"
-            @current_piece.unmoved = move_state
-            user_input = get_user_input()
-            if user_input == "C"
-              castle()
-              break
-            else
-              @current_move = get_position(user_input)
-              @current_piece = get_piece(T.must(@current_move[0]))
-            end
-          else
-            @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
-            @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = temp
-            break
-          end
-        else
-          puts "Please enter a valid move 2"
-          @current_piece.unmoved = move_state
-          user_input = get_user_input()
-          if user_input == "C"
-            castle()
-            break
-          else
-            @current_move = get_position(user_input)
-            @current_piece = get_piece(T.must(@current_move[0]))
-          end
-        end
-      end
-
-      break if user_input == "C"
-
-      if @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color)
-        captured_piece = @board.captured_piece
-        capture_piece(captured_piece)
-        break
-      end
-      @current_move = []
-      puts "Please enter a valid move"
     end
 
     #If current piece is a pawn, check for promotion
@@ -174,6 +97,86 @@ class Game
     @turn += 1
   end
 
+  # -1 -> end the game
+  #  0 -> invalid move (ask again for a new move)
+  #  1 -> valid move (proceed with the round)
+  sig { returns(Integer) }
+  def get_legal_move
+    puts "IN GET LEGAL MOVE"
+    #Is the king in check?
+    if @king_checked
+      #Check for checkmate
+      if stalemate()
+        puts "You have been checkmated!"
+        return -1
+      end
+      puts "You are in check!"
+      check_loop()
+      @king_checked = false
+    elsif stalemate() && @current_set.all? { |piece| piece.moves.empty? }
+      puts "Stalemate! The game is a draw"
+      return -1
+    else
+      did_castle = castle_or_move()
+      if did_castle
+        puts "CASTLED"
+        return 1
+      else
+        # User is moving, not castling
+        puts "DID NOT CASTLE"
+
+        # Handle en-passant
+        definitely_pawn = T.cast(@current_piece, Pawn)
+        if @current_piece.class == Pawn && !definitely_pawn.cant_ep && ep_pawn()
+          "IN ENPASSANT"
+          if en_passant()
+            definitely_pawn.cant_ep = true
+            return 1
+          else
+            return 0
+          end
+        end
+
+        #Check for legal move
+        move_state = @current_piece.unmoved
+        if @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
+
+          #CHECK TO MAKE SURE THE MOVE DOES NOT PUT KING IN CHECK
+          puts "CHECKING FOR LEGAL MOVE"
+          temp = @board.captured_piece
+
+          update_moves(@previous_set.reject { |piece| piece == get_piece(T.must(@current_move[1])) })
+          if (!find_checking_pieces().empty?)
+            @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
+            @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = temp
+            puts "KING IN CHECK"
+            return 0
+          else
+            @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
+            @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = temp
+            puts "PIECE SHOULD MOVE"
+          end
+        else
+          @current_piece.unmoved = move_state
+          puts "MOVE IS NOT POSSIBLE"
+          return 0
+        end
+
+        puts "CURRENT MOVE: #{@current_move[0]}, #{@current_move[1]}"
+        # Handle the legal move
+        if @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color)
+          puts "HANDLE LEGAL  MOVE"
+          captured_piece = @board.captured_piece
+          capture_piece(captured_piece)
+          return 1
+        end
+      end
+    end
+    
+    @current_move = []
+    return -1 
+   end
+
   sig { returns(String) }
   def turn_color
     return @turn % 2 == 0 ? "white" : "black"
@@ -186,6 +189,8 @@ class Game
     end
   end
 
+  # true -> en-passant has been successfully performed
+  # false -> en-passant has not been performed
   sig { returns(T::Boolean) }
   def en_passant()
     if ep_pawn()
@@ -198,6 +203,8 @@ class Game
     return false
   end
 
+  # true -> enemy pawn can be captured by en-passant
+  # false -> no enemy pawns can be captured by en-passant
   sig { returns(T::Boolean) }
   def ep_pawn()
     start_pos = @current_move[0]
@@ -262,6 +269,21 @@ class Game
     return user_input
   end
 
+  # true  -> castled
+  # false -> moved
+  sig {returns(T::Boolean)}
+  def castle_or_move
+    user_input = get_user_input()
+    if user_input == "C"
+      castle()
+      return true
+    else
+      @current_move = get_position(user_input)
+      @current_piece = get_piece(T.must(@current_move[0]))
+      return false
+    end
+  end
+
   sig { params(coord: String).returns(T::Array[T::Array[Integer]]) }
   def get_position(coord)
     position_arr = []
@@ -316,7 +338,7 @@ class Game
 
   sig {void}
   def check_loop
-    until (find_checking_pieces().empty?) || !(find_checking_pieces()[0].nil?)
+    until (find_checking_pieces().empty?)
 
       user_input = get_user_input()
       
@@ -332,7 +354,7 @@ class Game
       if @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color)
         temp = @board.captured_piece
         update_moves(@previous_set.reject { |piece| piece == get_piece(T.must(@current_move[1])) })
-        if (!find_checking_pieces().empty?) || (find_checking_pieces()[0].nil?)
+        if (!find_checking_pieces().empty?) 
           @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
           @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = temp
           @current_piece.unmoved = move_state
@@ -389,28 +411,28 @@ class Game
 
     #Check if any checking pieces can be captured by the current set
     return enemy_pos.any? do |arr|
-             @current_set.any? do |piece|
-               if piece.moves.include?(arr)
-                 checking_piece = get_piece(arr)
-                 curr_piece_pos = @board.board.coordinates(piece)
-                 move_status = piece.unmoved
+      @current_set.any? do |piece|
+        if piece.moves.include?(arr)
+          checking_piece = get_piece(arr)
+          curr_piece_pos = @board.board.coordinates(piece)
+          move_status = piece.unmoved
 
-                 @board.move(curr_piece_pos, arr, turn_color())
+          @board.move(curr_piece_pos, arr, turn_color())
 
-                 if find_checking_pieces().empty? || !(find_checking_pieces()[0].nil?)
-                   @board.board[curr_piece_pos[0]][curr_piece_pos[1]] = piece
-                   @board.board[arr[0]][arr[1]] = checking_piece
-                   piece.unmoved = move_status
-                   return true
-                 else
-                   piece.unmoved = move_status
-                   return false
-                 end
-               else
-                 return false
-               end
-             end
-           end
+          if find_checking_pieces().empty? || !(find_checking_pieces()[0].nil?)
+            @board.board[curr_piece_pos[0]][curr_piece_pos[1]] = piece
+            @board.board[arr[0]][arr[1]] = checking_piece
+            piece.unmoved = move_status
+            return true
+          else
+            piece.unmoved = move_status
+            return false
+          end
+        else
+          return false
+        end
+      end
+    end
   end
 
   sig { returns(T::Boolean) }
@@ -575,9 +597,11 @@ class Game
       piece.moves.each do |pos|
         if get_piece(pos).class == King && get_piece(pos).color != piece.color
           enemy_pos << @board.board.coordinates(piece)
+          puts "FOUND CHECKING PIECE AT #{enemy_pos}"
         end
       end
     end
+    puts "ENEMY POSITION #{enemy_pos}"
     return enemy_pos
   end
 
@@ -678,3 +702,5 @@ class Game
     return castle_type
   end
 end
+
+Game.driver()

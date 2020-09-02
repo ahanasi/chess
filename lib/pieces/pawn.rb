@@ -9,9 +9,9 @@ class Pawn < Piece
 
   sig { params(color: String).void }
   def initialize(color)
+    super
     @move_range = (color == "white") ? [[1, 0], [1, 1], [1, -1], [2, 0]] : [[-1, 0], [-1, 1], [-1, -1], [-2, 0]]
     @icon = (color == "white") ? "♟︎" : "♙"
     @cant_ep = T.let(false, T::Boolean)
-    super
   end
 end

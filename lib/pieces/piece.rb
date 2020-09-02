@@ -1,5 +1,4 @@
 # typed: true
-require "pry"
 require "sorbet-runtime"
 
 class Piece

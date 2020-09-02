@@ -7,7 +7,7 @@ class NilPiece < Piece
 
   sig {params(color: String).void}
   def initialize(color)
-    @icon = "."
     super
+    @icon = "."
   end
 end
