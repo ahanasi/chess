@@ -92,7 +92,7 @@ class Game
     @previous_set = @current_set
 
     #Check for CHECK
-    check(@current_set)
+    check()
 
     @turn += 1
   end
@@ -126,7 +126,6 @@ class Game
         puts "DID NOT CASTLE"
 
         # Handle en-passant
-        
         if @current_piece.class == Pawn && !T.cast(@current_piece, Pawn).cant_ep && is_trying_to_ep()
           definitely_pawn = T.cast(@current_piece, Pawn)
           puts "TRYING TO ENPASSANT"
@@ -141,38 +140,32 @@ class Game
         end
 
         #Check for legal move
-        move_state = @current_piece.unmoved
+        
         if @board.can_move?(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
 
           #CHECK TO MAKE SURE THE MOVE DOES NOT PUT KING IN CHECK
           puts "CHECKING FOR LEGAL MOVE"
-          temp = @board.captured_piece
+
+          #Temporarily move pieces
+          @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
 
           update_moves(@previous_set.reject { |piece| piece == get_piece(T.must(@current_move[1])) })
+
           if (!find_checking_pieces().empty?)
+            #Undo temp move
             @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
-            @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = temp
+            @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = @board.captured_piece
+            move_state = @current_piece.unmoved
             puts "KING IN CHECK"
             return 0
           end
 
-          @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
-          @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = temp
-          puts "PIECE SHOULD MOVE"
-
-          # Handle the legal move
-          puts "HANDLE LEGAL  MOVE"
-          @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color)
-          captured_piece = @board.captured_piece
-          puts "CAPTURED PIECE: #{captured_piece.icon}"
-          capture_piece(captured_piece)
-          puts "DISPLAY BOARD AFTER CAPTURE"
-          @board.display_board()
+          # Put captured piece in capture hash
+          capture_piece(@board.captured_piece)
           return 1
 
         end
 
-        @current_piece.unmoved = move_state
         puts "MOVE IS NOT POSSIBLE"
         return 0        
       end
@@ -322,15 +315,15 @@ class Game
     return @board.board[position[0]][position[1]]
   end
 
-  sig { params(set: T::Array[Piece]).returns(T::Boolean) }
-  def check(set)
-    # all_moves = @board.possible_moves(@current_move[1])
-    # return king_pos = all_moves.select { |square| get_piece(square).class == King }
+  sig { returns(T::Boolean) }
+  def check()
+    set = @previous_set
     @checked_king_pos = []
     set.each do |piece|
       piece.moves.each do |pos|
-        if get_piece(pos).class == King && get_piece(pos).color != piece.color
+        if get_piece(pos).class == King && get_piece(pos).color != piece.color 
           @checked_king_pos = pos
+          @king_checked = true
           return true
         end
       end
@@ -415,7 +408,7 @@ class Game
       update_moves(@previous_set)
 
       #Check if king is in check and append result to array
-      result_arr << @checked_king_pos if check(@previous_set)
+      result_arr << @checked_king_pos if check()
       #Return pieces to original position
       @board.board[king_pos[0]][king_pos[1]] = king
       @board.board[pos[0]][pos[1]] = temp
@@ -471,7 +464,7 @@ class Game
     bishops = enemy_pos.select { |pos| get_piece(pos).class == Bishop }
     queen = enemy_pos.select { |pos| get_piece(pos).class == Queen }.first
 
-    king_pos = @board.board.coordinates(@current_set.select{|piece| piece.class == King})  if !@checked_king_pos.empty?
+    king_pos = @board.board.coordinates(@current_set.select{|piece| piece.class == King}[0])  if !@checked_king_pos.empty?
 
     return false if (rooks.size > 1) || (bishops.size > 1)
     return false if ((rooks.size == 1 || bishops.size == 1) && !queen.nil?)
