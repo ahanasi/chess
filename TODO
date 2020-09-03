@@ -1,11 +1,15 @@
 1. fix stalemate function
 2. refactor block_checking_piece
 3. run check_loop for every piece, not just for when king is in check_loop
-5. nowhere are we checking whether the person wants to enpassant or just move hte pawn -
-   if we were able to en passant but wanted to move hte pawn forward, i'd bbet it would en passant instaed.
+8. Can en-passant into check
 
-6. LEGAL MOVE not being handled, play_round function moves to the next player 
 
+
+DONE
 
 4. create new get_legal_move function and get rid of the loop
-4. castle or move piece if statement repeated 3 times
+5. castle or move piece if statement repeated 3 times
+6. LEGAL MOVE not being handled, play_round function moves to the next player
+7. nowhere are we checking whether the person wants to enpassant or just move the pawn -
+   if we were able to en passant but wanted to move the pawn forward, i'd bbet it would en passant instaed.
+   if we are able to en_passant, the pawn can move _anywhere_ without validation, even if it it's an illegal move 

@@ -126,20 +126,23 @@ class Game
         puts "DID NOT CASTLE"
 
         # Handle en-passant
-        definitely_pawn = T.cast(@current_piece, Pawn)
-        if @current_piece.class == Pawn && !definitely_pawn.cant_ep && ep_pawn()
-          "IN ENPASSANT"
+        
+        if @current_piece.class == Pawn && !T.cast(@current_piece, Pawn).cant_ep && is_trying_to_ep()
+          definitely_pawn = T.cast(@current_piece, Pawn)
+          puts "TRYING TO ENPASSANT"
           if en_passant()
             definitely_pawn.cant_ep = true
+            puts "SUCCESSFUL IN EP"
             return 1
           else
+            puts "COULD NOT EP - RETRY"
             return 0
           end
         end
 
         #Check for legal move
         move_state = @current_piece.unmoved
-        if @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
+        if @board.can_move?(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
 
           #CHECK TO MAKE SURE THE MOVE DOES NOT PUT KING IN CHECK
           puts "CHECKING FOR LEGAL MOVE"
@@ -151,30 +154,32 @@ class Game
             @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = temp
             puts "KING IN CHECK"
             return 0
-          else
-            @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
-            @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = temp
-            puts "PIECE SHOULD MOVE"
           end
-        else
-          @current_piece.unmoved = move_state
-          puts "MOVE IS NOT POSSIBLE"
-          return 0
+
+          @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
+          @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = temp
+          puts "PIECE SHOULD MOVE"
+
+          # Handle the legal move
+          puts "HANDLE LEGAL  MOVE"
+          @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color)
+          captured_piece = @board.captured_piece
+          puts "CAPTURED PIECE: #{captured_piece.icon}"
+          capture_piece(captured_piece)
+          puts "DISPLAY BOARD AFTER CAPTURE"
+          @board.display_board()
+          return 1
+
         end
 
-        puts "CURRENT MOVE: #{@current_move[0]}, #{@current_move[1]}"
-        # Handle the legal move
-        if @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color)
-          puts "HANDLE LEGAL  MOVE"
-          captured_piece = @board.captured_piece
-          capture_piece(captured_piece)
-          return 1
-        end
+        @current_piece.unmoved = move_state
+        puts "MOVE IS NOT POSSIBLE"
+        return 0        
       end
     end
     
     @current_move = []
-    return -1 
+    return 0 
    end
 
   sig { returns(String) }
@@ -193,12 +198,33 @@ class Game
   # false -> en-passant has not been performed
   sig { returns(T::Boolean) }
   def en_passant()
-    if ep_pawn()
+    if ep_pawn() && is_trying_to_ep()
       capture_piece(get_piece([T.must(T.must(@current_move[0])[0]), T.must(T.must(@current_move[1])[1])]))
       @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = @current_piece
       @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = NilPiece.new("")
       @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[1])[1])] = NilPiece.new("")
       return true
+    end
+    return false
+  end
+
+  # true -> user is trying to en-passant
+  # false -> user is not trying to en-passant
+  sig {returns(T::Boolean)}
+  def is_trying_to_ep
+    
+    start_pos = @current_move[0]
+    end_pos = @current_move[1]
+
+    end_pos_col_right = T.must(T.must(end_pos)[1]) > T.must(T.must(start_pos)[1])
+    end_pos_col_left = T.must(T.must(end_pos)[1]) < T.must(T.must(start_pos)[1])
+    
+    #Pawns must be on their fifth rank
+    if (T.must(start_pos)[0] == 3 && turn_color == "black") || (T.must(start_pos)[0] == 4 && turn_color == "white")
+      #Pawn is trying to diagonally move to an empty square
+      if ((end_pos_col_right) || (end_pos_col_left)) && (get_piece(T.must(end_pos)).class == NilPiece)
+        return true
+      end
     end
     return false
   end
