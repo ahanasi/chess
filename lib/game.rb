@@ -452,38 +452,51 @@ class Game
 
   sig { returns(T::Boolean) }
   def capture_checking_piece
+
     #Find out location of all pieces that could put the king in check
     enemy_pos = find_checking_pieces()
-
+    result_arr = []
+  
     #Check if any checking pieces can be captured by the current set
-    return enemy_pos.any? do |arr|
-      @current_set.any? do |piece|
+     enemy_pos.each do |arr|
+      @current_set.each do |piece|
         if piece.moves.include?(arr)
           
           checking_piece = get_piece(arr)
           curr_piece_pos = @board.board.coordinates(piece)
           
           move_status = piece.unmoved
-
-          if @board.can_move?(curr_piece_pos, arr, turn_color())
-
-            @board.move(curr_piece_pos, arr, turn_color())
-
-            if find_checking_pieces().empty? || !(find_checking_pieces()[0].nil?)
-              @board.board[curr_piece_pos[0]][curr_piece_pos[1]] = piece
-              @board.board[arr[0]][arr[1]] = checking_piece
-              piece.unmoved = move_status
-              return true
-            else
-              piece.unmoved = move_status
-              return false
-            end
+  
+          #Temporarily move piece
+          @board.move(curr_piece_pos, arr, turn_color())
+  
+          #Update previous set moves
+          update_moves(@previous_set)
+  
+          if !(find_checking_pieces().empty?)
+            #KING IN  CHECK
+            result_arr << false
+          else
+            result_arr << true
           end
+  
+          #Return pieces to original position
+          @board.board[curr_piece_pos[0]][curr_piece_pos[1]] = piece
+          @board.board[arr[0]][arr[1]] = checking_piece
+          piece.unmoved = move_status
+          update_moves(@previous_set)
+            
         else
-          return false
+          result_arr << false
         end
       end
     end
+    
+    
+    # Return false if none of the possible moves can capture checking piece
+    puts "RESULT ARRAY: #{result_arr}"
+    return false if result_arr.none? { |val| val }
+    return true
   end
 
   sig { returns(T::Boolean) }
@@ -500,7 +513,7 @@ class Game
     bishops = enemy_pos.select { |pos| get_piece(pos).class == Bishop }
     queen = enemy_pos.select { |pos| get_piece(pos).class == Queen }.first
 
-    king_pos = @board.board.coordinates(@current_set.select{|piece| piece.class == King}[0])  if !@checked_king_pos.empty?
+    king_pos = @board.board.coordinates(@current_set.select{|piece| piece.class == King}[0])
 
     return false if (rooks.size > 1) || (bishops.size > 1)
     return false if ((rooks.size == 1 || bishops.size == 1) && !queen.nil?)
@@ -614,6 +627,8 @@ class Game
 
       queen_moves = @board.possible_moves(queen)
       queen_moves.reject!{|pos| pos == king_pos}
+
+      puts "KING POS: #{king_pos}"
 
       same_row = queen_moves.select { |move| (move[0] == king_pos[0]) && (move[0] == queen[0])  }
       same_col = queen_moves.select { |move| (move[1] == king_pos[1]) && (move[1] == queen[1]) }
