@@ -73,7 +73,7 @@ class Board
     all_moves.pop() unless @board.fetch(start_pos.fetch(0)).fetch(start_pos.fetch(1)).unmoved
 
     #Add in diagonal attacks if applicable
-    (all_moves + diagonal_moves) unless diagonal_moves.empty?
+    all_moves = (all_moves + diagonal_moves) unless diagonal_moves.empty?
 
     #Prevent default movement if position occupied
     all_moves.shift unless empty_square?(all_moves.first)
@@ -114,7 +114,6 @@ class Board
   sig {params(start_pos: T::Array[Integer], end_pos: T::Array[Integer], color: String).void}
   def move(start_pos, end_pos, color)
     piece = @board.fetch(start_pos.fetch(0)).fetch(start_pos.fetch(1))
-    puts "MOVE FUNCTION START"
 
     # Capture piece
     @captured_piece = @board.fetch(end_pos.fetch(0)).fetch(end_pos.fetch(1))
