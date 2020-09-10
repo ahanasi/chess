@@ -62,15 +62,23 @@ class Board
 
   sig  {params(start_pos: T::Array[Integer], range: T::Array[T::Array[Integer]]).returns(T::Array[T::Array[Integer]])}
   def pawn_move(start_pos, range)
-    all_moves = T.let(jump_move(start_pos, range, 1).select { |arr| arr if (arr.all? { |val| (val >= 0 && val < 8) }) }, T::Array[T::Array[Integer]])
+    all_moves = T.let(jump_move(start_pos, range, 1).select { |arr| arr if (arr.all? { |val| (val >= 0 && val <= 7) }) }, T::Array[T::Array[Integer]])
 
     #Isolate and filter diagonal movements
     diagonal_moves = T.let(all_moves.select { |arr| arr.fetch(1) != start_pos.fetch(1) }, T::Array[T::Array[Integer]])
     all_moves = (all_moves - diagonal_moves)
     diagonal_moves.reject! { |arr| (empty_square?(arr) || friendly_fire?(start_pos, arr)) }
 
-    # Remove two-step if pawn has been previously moved
-    all_moves.pop() unless @board.fetch(start_pos.fetch(0)).fetch(start_pos.fetch(1)).unmoved
+    # Remove two-step if pawn has been previously moved or if there is an enemy pawn in the path
+    if !(@board.fetch(start_pos.fetch(0)).fetch(start_pos.fetch(1)).unmoved)
+      if !all_moves.size == 1
+        all_moves.pop()
+      end
+    else
+      if !empty_square?(all_moves.last) || (empty_square?(all_moves.last) && !empty_square?(all_moves.first))
+        all_moves.pop()
+      end
+    end
 
     #Add in diagonal attacks if applicable
     all_moves = (all_moves + diagonal_moves) unless diagonal_moves.empty?
@@ -83,7 +91,7 @@ class Board
 
   sig  {params(start_pos: T::Array[Integer], all_moves: T::Array[T::Array[Integer]]).returns(T::Array[T::Array[Integer]])}
   def valid_moves(start_pos, all_moves)
-    all_moves.select { |arr| arr if ((arr.all? { |val| (val >= 0 && val < 8) }) && arr.length == 2) } #within board
+    all_moves.select { |arr| arr if ((arr.all? { |val| (val >= 0 && val <= 7) }) && arr.length == 2) } #within board
       .select { |arr| !friendly_fire?(start_pos, arr) } #is friendly_fire?
       .reject { |arr| arr.empty? }
   end
