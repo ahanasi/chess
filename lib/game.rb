@@ -140,38 +140,15 @@ class Game
         end
 
         #Check for legal move
-
-        puts "CURRENT PIECE MOVES: #{@board.possible_moves(@current_move[0])}"
-        
-        if @board.can_move?(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
-          
-          #CHECK TO MAKE SURE THE MOVE DOES NOT PUT KING IN CHECK
-          puts "CHECKING FOR LEGAL MOVE"
-
-          #Temporarily move pieces
-          move_state = @current_piece.unmoved
-          @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
-          @previous_set.reject! { |piece| piece == get_piece(T.must(@current_move[1])) }
-
-          update_moves(T.must(@previous_set))
-
-          if (!find_checking_pieces().empty?)
-            #Undo temp move
-            @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
-            @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = @board.captured_piece
-            @current_piece.unmoved = move_state
-            @previous_set << @board.captured_piece unless @board.captured_piece.class == NilPiece
+        if @board.can_move?(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())  
+          if moving_to_check?()
             puts "That move puts your king in check. Please move another piece."
             puts "KING IN CHECK"
             return 0
-          end
-
-          # Put captured piece in capture hash
-          capture_piece(@board.captured_piece)
-          return 1
-
+          else
+            return 1
+          end               
         end
-
         puts "MOVE IS NOT POSSIBLE"
         return 0        
       end
@@ -179,7 +156,35 @@ class Game
     
     @current_move = []
     return 0 
-   end
+  end
+
+  # true -> Move puts the king in check
+  # false -> Move does not put the king in check
+  def moving_to_check?()
+                
+    #CHECK TO MAKE SURE THE MOVE DOES NOT PUT KING IN CHECK
+    puts "CHECK TO MAKE SURE THE MOVE DOES NOT PUT KING IN CHECK"
+  
+    #Temporarily move pieces
+    move_state = @current_piece.unmoved
+    @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
+    @previous_set.reject! { |piece| piece == get_piece(T.must(@current_move[1])) }
+    update_moves(T.must(@previous_set))
+  
+    if (!find_checking_pieces().empty?)
+      #Undo temp move
+      @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
+      @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = @board.captured_piece
+      @current_piece.unmoved = move_state
+      @previous_set << @board.captured_piece unless @board.captured_piece.class == NilPiece
+      puts "That move puts your king in check. Please move another piece."
+      puts "KING IN CHECK"
+      return true
+    end
+    # Put captured piece in capture hash
+    capture_piece(@board.captured_piece)
+    return false
+  end
 
   sig { returns(String) }
   def turn_color
@@ -380,32 +385,15 @@ class Game
   def check_loop
 
     while @king_checked
-
       puts "IN CHECK LOOP"
-
       user_input = get_user_input()
-   
       @current_move = get_position(user_input)
       @current_piece = get_piece(T.must(@current_move[0]))
 
-      move_state = @current_piece.unmoved
-
-      if @board.can_move?(T.must(@current_move[0]), T.must(@current_move[1]), turn_color)
-        
-        @board.move(T.must(@current_move[0]), T.must(@current_move[1]), turn_color)
-        @previous_set.reject! { |piece| piece == get_piece(T.must(@current_move[1])) }
-        update_moves(T.must(@previous_set))
-        
-        if !(find_checking_pieces().empty?) 
-          #KING IN CHECK
-          @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
-          @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = @board.captured_piece
-          @current_piece.unmoved = move_state
-          @previous_set << @board.captured_piece unless @board.captured_piece.class == NilPiece
+      if @board.can_move?(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
+        if moving_to_check?()
           puts "Please make a valid move 1"
         else
-          # Put captured piece in capture hash
-          capture_piece(@board.captured_piece)
           @king_checked = false
           break
         end
