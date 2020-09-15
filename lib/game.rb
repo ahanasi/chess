@@ -161,11 +161,20 @@ class Game
 
   sig {params(piece: Piece,curr_pos: T::Array[Integer], end_pos: T::Array[Integer]).returns(T::Boolean)}
   def temp_move(piece,curr_pos,end_pos)
-    move_status = piece.unmoved
+    move_state = piece.unmoved
     @board.move(curr_pos, end_pos, turn_color())
     @previous_set.reject! { |piece| piece == get_piece(end_pos) }
     update_moves(@previous_set)
-    return move_status
+    return move_state
+  end
+
+  sig {params(piece: Piece, move_status: T::Boolean, start_pos: T::Array[Integer], end_pos: T::Array[Integer]).void}
+  def undo_temp_move(piece,move_status,start_pos,end_pos)
+    @board.board[start_pos[0]][start_pos[1]] = piece
+    @board.board[end_pos[0]][end_pos[1]] = @board.captured_piece
+    piece.unmoved = move_status
+    @previous_set << @board.captured_piece unless @board.captured_piece.class == NilPiece
+    update_moves(@previous_set)
   end
 
   # true -> Move puts the king in check
@@ -181,10 +190,7 @@ class Game
   
     if (!find_checking_pieces().empty?)
       #Undo temp move
-      @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = @current_piece
-      @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = @board.captured_piece
-      @current_piece.unmoved = move_state
-      @previous_set << @board.captured_piece unless @board.captured_piece.class == NilPiece
+      undo_temp_move(@current_piece,move_state,T.must(@current_move[0]),T.must(@current_move[1]))
       puts "That move puts your king in check. Please move another piece."
       puts "KING IN CHECK"
       return true
@@ -439,11 +445,7 @@ class Game
       end
 
       #Return pieces to original position
-      @board.board[king_pos[0]][king_pos[1]] = king
-      @board.board[position[0]][position[1]] = @board.captured_piece
-      T.must(king).unmoved = move_state
-      @previous_set << @board.captured_piece unless @board.captured_piece.class == NilPiece
-      update_moves(@previous_set)
+      undo_temp_move(T.must(king),move_state,king_pos,position)
     end
 
     # Return false if all possible moves keep him in check
@@ -467,7 +469,7 @@ class Game
           curr_piece_pos = @board.board.coordinates(piece)
           
           #Temporarily move piece
-          move_status = temp_move(piece,curr_piece_pos,arr)
+          move_state = temp_move(piece,curr_piece_pos,arr)
   
           if !(find_checking_pieces().empty?)
             #KING IN  CHECK
@@ -477,12 +479,7 @@ class Game
           end
   
           #Return pieces to original position
-          @board.board[curr_piece_pos[0]][curr_piece_pos[1]] = piece
-          @board.board[arr[0]][arr[1]] = checking_piece
-          piece.unmoved = move_status
-          @previous_set << @board.captured_piece unless @board.captured_piece.class == NilPiece
-          update_moves(@previous_set)
-            
+          undo_temp_move(piece,move_state,curr_piece_pos,arr)
         else
           result_arr << false
         end
@@ -533,7 +530,7 @@ class Game
               curr_piece_pos = @board.board.coordinates(piece)
 
               #Temporarily move piece
-              move_status = temp_move(piece,curr_piece_pos,arr)
+              move_state = temp_move(piece,curr_piece_pos,arr)
         
               if !(find_checking_pieces().empty?)
                 #KING IS IN CHECK
@@ -544,11 +541,7 @@ class Game
               end
 
               #Undo Move
-              @board.board[curr_piece_pos[0]][curr_piece_pos[1]] = piece
-              @board.board[arr[0]][arr[1]] = @board.captured_piece
-              piece.unmoved = move_status
-              @previous_set << @board.captured_piece unless @board.captured_piece.class == NilPiece
-
+              undo_temp_move(piece,move_state,curr_piece_pos,arr)
             else
               result_arr << false
             end
@@ -593,21 +586,16 @@ class Game
               curr_piece_pos = @board.board.coordinates(piece)
               
               #Temporarily move piece
-              move_status = temp_move(piece,curr_piece_pos,arr)
+              move_state = temp_move(piece,curr_piece_pos,arr)
 
               if !(find_checking_pieces().empty?)
                 result_arr << true
               else
-                piece.unmoved = move_status
                 result_arr << false
               end
 
               #Undo Move
-              @board.board[curr_piece_pos[0]][curr_piece_pos[1]] = piece
-              @board.board[arr[0]][arr[1]] = @board.captured_piece
-              piece.unmoved = move_status
-              @previous_set << @board.captured_piece unless @board.captured_piece.class == NilPiece
-
+              undo_temp_move(piece,move_state,curr_piece_pos,arr)
             else
               result_arr << false
             end
@@ -663,7 +651,7 @@ class Game
               curr_piece_pos = @board.board.coordinates(piece)
               
               #Temporarily move piece
-              move_status = temp_move(piece,curr_piece_pos,arr)
+              move_state = temp_move(piece,curr_piece_pos,arr)
 
               if !(find_checking_pieces().empty?)
                 #KING IS IN CHECK
@@ -674,11 +662,7 @@ class Game
               end
 
               #Undo Move
-              @board.board[curr_piece_pos[0]][curr_piece_pos[1]] = piece
-              @board.board[arr[0]][arr[1]] = @board.captured_piece
-              piece.unmoved = move_status
-              @previous_set << @board.captured_piece unless @board.captured_piece.class == NilPiece
-
+              undo_temp_move(piece,move_state,curr_piece_pos,arr)
             else
               result_arr << false
             end
