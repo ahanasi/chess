@@ -391,8 +391,8 @@ class Game
 
   sig { returns(T::Boolean) }
   def stalemate
-    puts "CAN MOVE KING: #{can_move_king}, CAPTURE_CHECKING_PIECE: #{capture_checking_piece}, BLOCK: #{block_checking_piece}"
-    return !can_move_king && !capture_checking_piece && !block_checking_piece
+    puts "CAN MOVE KING: #{can_move_king?}, CAPTURE_CHECKING_PIECE: #{can_capture_checking_piece?}, BLOCK: #{can_block_checking_piece?}"
+    return !can_move_king? && !can_capture_checking_piece? && !can_block_checking_piece?
   end
 
   sig {void}
@@ -418,7 +418,7 @@ class Game
   end
 
   sig { returns(T::Boolean) }
-  def can_move_king
+  def can_move_king?
 
     # Find all possible moves for king
     king = @current_set.select { |piece| piece.class == King }[0]
@@ -454,7 +454,7 @@ class Game
   end
 
   sig { returns(T::Boolean) }
-  def capture_checking_piece
+  def can_capture_checking_piece?
 
     #Find out location of all pieces that could put the king in check
     enemy_pos = find_checking_pieces()
@@ -488,18 +488,16 @@ class Game
     
     
     # Return false if none of the possible moves can capture checking piece
-    puts "RESULT ARRAY: #{result_arr}"
     return false if result_arr.none? { |val| val }
     return true
   end
 
   sig { returns(T::Boolean) }
-  def block_checking_piece
+  def can_block_checking_piece?
     
     update_moves_with_pawn(@current_set)
     enemy_pos = find_checking_pieces()
     
-    result_arr = T.let([false],T::Array[T::Boolean])
     result = T.let(false, T::Boolean)
 
 
@@ -515,94 +513,15 @@ class Game
 
     if !rooks.empty?
       rooks.each do |rook|
-        rook_moves = @board.possible_moves(rook)
-        rook_moves = rook_moves - king_pos
-
-        rook_moves = rook_moves.select { |move| (move[0] == king_pos[0]) || (move[1] == king_pos[1]) }
-
-        rook_moves.each do |arr|
-          @current_set.each do |piece|
-            if piece.moves.include?(arr)
-        
-              checking_piece_pos = rook
-              checking_piece = get_piece(rook)
-        
-              curr_piece_pos = @board.board.coordinates(piece)
-
-              #Temporarily move piece
-              move_state = temp_move(piece,curr_piece_pos,arr)
-        
-              if !(find_checking_pieces().empty?)
-                #KING IS IN CHECK
-                result_arr << false
-              else
-                #KING NOT IN CHECK
-                result_arr << true
-              end
-
-              #Undo Move
-              undo_temp_move(piece,move_state,curr_piece_pos,arr)
-            else
-              result_arr << false
-            end
-          end
-        end
-        result = result_arr.any? {|val| val}        
+        rook_moves = get_path_to_king(rook,king_pos)
+        result = can_block_piece?(rook_moves,rook)     
       end
     end
 
     if !bishops.empty?
       bishops.each do |bishop|
-
-        bishop_moves = @board.possible_moves(bishop)
-        bishop_moves = bishop_moves - king_pos
-
-        #Find bishop moves in applicable quadrant
-        if king_pos[0] > T.must(bishop[0])
-          if king_pos[1] > T.must(bishop[1])
-            #First Quadrant
-            bishop_moves.select! { |move| (T.must(move[0]) > T.must(bishop[0])) && (T.must(move[1]) > T.must(bishop[1])) }
-          else
-            #Second Quadrant
-            bishop_moves.select! { |move| (T.must(move[0]) > T.must(bishop[0])) && (T.must(move[1]) < T.must(bishop[1])) }
-          end
-        else
-          if king_pos[1] < T.must(bishop[1])
-            #Third Quadrant
-            bishop_moves.select! { |move| (T.must(move[0]) < T.must(bishop[0])) && (T.must(move[1]) < T.must(bishop[1])) }
-          else
-            #Fourth Quadrant
-            bishop_moves.select! { |move| (T.must(move[0]) > T.must(bishop[0])) && (T.must(move[1]) < T.must(bishop[1])) }
-          end
-        end
-
-        bishop_moves.each do |arr|
-          @current_set.each do |piece|
-            if piece.moves.include?(arr)
-
-              checking_piece_pos = bishop
-              checking_piece = get_piece(bishop)
-
-              curr_piece_pos = @board.board.coordinates(piece)
-              
-              #Temporarily move piece
-              move_state = temp_move(piece,curr_piece_pos,arr)
-
-              if !(find_checking_pieces().empty?)
-                result_arr << true
-              else
-                result_arr << false
-              end
-
-              #Undo Move
-              undo_temp_move(piece,move_state,curr_piece_pos,arr)
-            else
-              result_arr << false
-            end
-          end
-        end
-
-        result = result_arr.any? {|val| val}
+        bishop_moves = get_path_to_king(bishop,king_pos)
+        result = can_block_piece?(bishop_moves,bishop)
       end
     end
 
@@ -611,8 +530,6 @@ class Game
       queen_moves = @board.possible_moves(queen)
       queen_moves.reject!{|pos| pos == king_pos}
 
-      puts "KING POS: #{king_pos}"
-
       same_row = queen_moves.select { |move| (move[0] == king_pos[0]) && (move[0] == queen[0])  }
       same_col = queen_moves.select { |move| (move[1] == king_pos[1]) && (move[1] == queen[1]) }
 
@@ -620,62 +537,77 @@ class Game
         result = same_row.any? { |arr| @current_set.any? { |piece| piece.moves.include?(arr) } }
       elsif !same_col.empty?
         result = same_col.any? { |arr| @current_set.any? { |piece| piece.moves.include?(arr) };}
-        puts "RESULT FOR SAME COL: #{result}"
       else
-        if king_pos[0] > queen[0]
-          if king_pos[1] > queen[1]
-            #First Quadrant
-            queen_moves.select! { |move| (T.must(move[0]) > T.must(queen[0])) && (T.must(move[1]) > T.must(queen[1])) }
-          else
-            #Second Quadrant
-            queen_moves.select! { |move| (T.must(move[0]) > T.must(queen[0])) && (T.must(move[1]) < T.must(queen[1])) }
-          end
-        else
-          if king_pos[1] < queen[1]
-            #Third Quadrant
-            queen_moves.select! { |move| (T.must(move[0]) < T.must(queen[0])) && (T.must(move[1]) < T.must(queen[1])) }
-          else
-            #Fourth Quadrant
-            queen_moves.select! { |move| (T.must(move[0]) > T.must(queen[0])) && (T.must(move[1]) < T.must(queen[1])) }
-          end
-        end
-
-        
-        queen_moves.each do |arr|
-          @current_set.each do |piece|
-            if piece.moves.include?(arr)
-              
-              checking_piece_pos = queen
-              checking_piece = get_piece(queen)
-
-              curr_piece_pos = @board.board.coordinates(piece)
-              
-              #Temporarily move piece
-              move_state = temp_move(piece,curr_piece_pos,arr)
-
-              if !(find_checking_pieces().empty?)
-                #KING IS IN CHECK
-                result_arr << false
-              else
-                #KING NOT IN CHECK
-                result_arr << true
-              end
-
-              #Undo Move
-              undo_temp_move(piece,move_state,curr_piece_pos,arr)
-            else
-              result_arr << false
-            end
-          end
-        end
-        result = result_arr.any? {|val| val}
+        queen_moves = get_path_to_king(queen,king_pos)
+        result = can_block_piece?(queen_moves,queen)
       end
       update_moves(@current_set)
       return result
     end
-
     update_moves(@current_set)
     return result
+  end
+
+  # true  -> sliding piece can be blocked
+  # false -> sliding piece cannot be blocked
+  sig { params(moves_arr: T::Array[T::Array[Integer]], pos: T::Array[Integer]).returns(T::Boolean) }
+  def can_block_piece?(moves_arr,pos)
+    result_arr = T.let([false],T::Array[T::Boolean])
+    moves_arr.each do |arr|
+      @current_set.each do |piece|
+        if piece.moves.include?(arr)
+          checking_piece_pos = pos
+          checking_piece = get_piece(pos)
+    
+          curr_piece_pos = @board.board.coordinates(piece)
+          
+          #Temporarily move piece
+          move_state = temp_move(piece,curr_piece_pos,arr)
+    
+          if !(find_checking_pieces().empty?)
+            result_arr << false
+          else
+            result_arr << true
+          end
+    
+          #Undo Move
+          undo_temp_move(piece,move_state,curr_piece_pos,arr)
+        else
+          result_arr << false
+        end
+      end
+    end
+    result = result_arr.any? {|val| val}
+    return result
+  end
+
+  sig { params(piece_pos: T::Array[Integer], king_pos: T::Array[Integer]).returns(T::Array[T::Array[Integer]])}
+  def get_path_to_king(piece_pos,king_pos)
+    piece_moves = @board.possible_moves(piece_pos)
+    piece_moves.reject!{|pos| pos == king_pos}
+
+    if get_piece(piece_pos).class == Rook
+      piece_moves = piece_moves.select { |move| (move[0] == king_pos[0]) || (move[1] == king_pos[1]) }
+    else
+      if T.must(king_pos[0]) > T.must(piece_pos[0])
+        if T.must(king_pos[1]) > T.must(piece_pos[1])
+          #First Quadrant
+          piece_moves = piece_moves.select { |move| (T.must(move[0]) > T.must(piece_pos[0])) && (T.must(move[1]) > T.must(piece_pos[1])) }
+        else
+          #Second Quadrant
+          piece_moves = piece_moves.select { |move| (T.must(move[0]) > T.must(piece_pos[0])) && (T.must(move[1]) < T.must(piece_pos[1])) }
+        end
+      else
+        if T.must(king_pos[1]) < T.must(piece_pos[1])
+          #Third Quadrant
+          piece_moves = piece_moves.select { |move| (T.must(move[0]) < T.must(piece_pos[0])) && (T.must(move[1]) < T.must(piece_pos[1])) }
+        else
+          #Fourth Quadrant
+          piece_moves = piece_moves.select { |move| (T.must(move[0]) < T.must(piece_pos[0])) && (T.must(move[1]) > T.must(piece_pos[1])) }
+        end
+      end
+    end
+    return piece_moves
   end
 
   sig { returns(T::Array[T::Array[Integer]]) }
