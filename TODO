@@ -1,8 +1,5 @@
 1. fix stalemate function
-2. refactor block_checking_piece
-3. run check_loop for every piece, not just for when king is in check_loop
 8. Can en-passant into check
-
 
 
 DONE
@@ -13,3 +10,15 @@ DONE
 7. nowhere are we checking whether the person wants to enpassant or just move the pawn -
    if we were able to en passant but wanted to move the pawn forward, i'd bbet it would en passant instaed.
    if we are able to en_passant, the pawn can move _anywhere_ without validation, even if it it's an illegal move 
+9. checks are considered checkmate
+   - fix block_checking_piece for queen, rook, bishop
+   - fix can_move_king
+   - fix capture_checking_piece
+10. Bug in pawn movement
+   - Pawn can double step over enemy pawn
+   - Pawn being indexed after capture
+3. run check_loop for every piece, not just for when king is in check_loop
+2. refactor block_checking_piece
+
+
+   
