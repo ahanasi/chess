@@ -135,9 +135,11 @@ class Board
 
   sig {void}
   def initialize_moves
-    [0,1,6,7].each do |row|
+    (0..7).each do |row|
       (0..7).each do |col|
-        possible_moves([row,col])
+        unless @board[row][col].class == NilPiece
+          possible_moves([row,col])
+        end
       end
     end
   end

@@ -38,11 +38,77 @@ class Game
     @promoted_piece = T.let(NilPiece.new(""), Piece)
   end
 
+  class << Game
+    extend T::Sig
+
+    sig { void }
+    def create_board
+      custom_board = T.let([], T::Array[T::Array[Piece]])
+      (0..7).each do |row|
+        is_input_valid = false
+        until is_input_valid do
+          puts "Enter the contents of row #{row + 1} (e.g. B-pawn, B-bishop, B-king):"
+          input = gets.chomp.downcase
+          tokenized_input = input.split(' ')
+          piece_input = tokenized_input.map do |token|
+            split_token = token.split('-')
+            if (split_token.length != 2)
+              break
+            end
+
+            if split_token[0] != 'b' && split_token[0] != 'w'
+              break
+            end
+            color = split_token[0] == 'w' ? 'white' : 'black'
+
+            case split_token[1]
+              when 'pawn'
+                Pawn.new(color)
+              when 'bishop'
+                Bishop.new(color)
+              when 'king'
+                King.new(color)
+              when 'knight'
+                Knight.new(color)
+              when 'queen'
+                Queen.new(color)
+              when 'rook'
+                Rook.new(color)
+              else
+                NilPiece.new('')
+            end
+          end
+
+          until piece_input.length == 8
+            piece_input.append(NilPiece.new(''))
+          end
+
+          is_input_valid = true
+          piece_input
+        end
+
+        custom_board.append(piece_input)
+      end
+
+      puts "Custom board: #{custom_board}"
+      game = Game.new()
+      game.board.board = custom_board
+      game.play_game
+    end
+  end
+
   sig { void }
   def self.driver
     system "clear"
-    puts "Welcome to Chess! Press 'S' to start a new game. Press enter to exit."
-    gets.chomp.upcase == "S" ? Game.new().play_game : exit
+    puts "Welcome to Chess! Press 'S' to start a new game, or 'N' to start from a custom board.\nPress enter to exit."
+    input = gets.chomp.upcase
+    if input == "S"
+      Game.new().play_game
+    elsif input == "N"
+      Game.create_board
+    else
+      exit
+    end
   end
 
   sig { void }
@@ -503,8 +569,8 @@ class Game
     rooks = enemy_pos.select { |pos| get_piece(pos).class == Rook }
     bishops = enemy_pos.select { |pos| get_piece(pos).class == Bishop }
     queen = enemy_pos.select { |pos| get_piece(pos).class == Queen }.first
-    knights = enemy_pos.select {|pos| get_piece(pos).class == Kinght}
-    pawns = enemy_pos.select {|pos| get_position(pos).class == Pawn}
+    knights = enemy_pos.select {|pos| get_piece(pos).class == Knight }
+    pawns = enemy_pos.select {|pos| get_position(pos).class == Pawn }
 
     king_pos = @board.board.coordinates(@current_set.select{|piece| piece.class == King}[0])
 
