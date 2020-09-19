@@ -500,28 +500,30 @@ class Game
     
     result = T.let(false, T::Boolean)
 
-
     rooks = enemy_pos.select { |pos| get_piece(pos).class == Rook }
     bishops = enemy_pos.select { |pos| get_piece(pos).class == Bishop }
     queen = enemy_pos.select { |pos| get_piece(pos).class == Queen }.first
+    knights = enemy_pos.select {|pos| get_piece(pos).class == Kinght}
+    pawns = enemy_pos.select {|pos| get_position(pos).class == Pawn}
 
     king_pos = @board.board.coordinates(@current_set.select{|piece| piece.class == King}[0])
 
-    return false if (rooks.size > 1) || (bishops.size > 1)
+    return false if (rooks.size > 1)
     return false if ((rooks.size == 1 || bishops.size == 1) && !queen.nil?)
     return false if (rooks.size == 1 && bishops.size == 1)
+    return false if ((knights.size >= 1) || (pawns.size >= 1))
 
     if !rooks.empty?
       rooks.each do |rook|
         rook_moves = get_path_to_king(rook,king_pos)
-        result = can_block_piece?(rook_moves,rook)     
+        result = can_block_piece?(rook_moves)     
       end
     end
 
     if !bishops.empty?
       bishops.each do |bishop|
         bishop_moves = get_path_to_king(bishop,king_pos)
-        result = can_block_piece?(bishop_moves,bishop)
+        result = can_block_piece?(bishop_moves)
       end
     end
 
@@ -539,7 +541,7 @@ class Game
         result = same_col.any? { |arr| @current_set.any? { |piece| piece.moves.include?(arr) };}
       else
         queen_moves = get_path_to_king(queen,king_pos)
-        result = can_block_piece?(queen_moves,queen)
+        result = can_block_piece?(queen_moves)
       end
       update_moves(@current_set)
       return result
@@ -550,15 +552,13 @@ class Game
 
   # true  -> sliding piece can be blocked
   # false -> sliding piece cannot be blocked
-  sig { params(moves_arr: T::Array[T::Array[Integer]], pos: T::Array[Integer]).returns(T::Boolean) }
-  def can_block_piece?(moves_arr,pos)
+  sig { params(moves_arr: T::Array[T::Array[Integer]]).returns(T::Boolean) }
+  def can_block_piece?(moves_arr)
     result_arr = T.let([false],T::Array[T::Boolean])
     moves_arr.each do |arr|
       @current_set.each do |piece|
         if piece.moves.include?(arr)
-          checking_piece_pos = pos
-          checking_piece = get_piece(pos)
-    
+
           curr_piece_pos = @board.board.coordinates(piece)
           
           #Temporarily move piece
