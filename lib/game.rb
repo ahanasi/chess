@@ -44,48 +44,78 @@ class Game
     sig { void }
     def create_board
       custom_board = T.let([], T::Array[T::Array[Piece]])
-      (0..7).each do |row|
-        is_input_valid = false
-        until is_input_valid do
-          puts "Enter the contents of row #{row + 1} (e.g. B-pawn, B-bishop, B-king):"
-          input = gets.chomp.downcase
-          tokenized_input = input.split(' ')
-          piece_input = tokenized_input.map do |token|
-            split_token = token.split('-')
+      puts "\nPaste your custom board, with each rank on a newline.\nUse x-x for an empty square between pieces\nUse an empty line to denote an entirely empty rank.\nRanks with less than 8 files are filled with empty-squares"
+      puts "Example\n
+        x-x x-x x-x x-x x-x x-x b-king
+
+
+        x-x x-x x-x x-x b-pawn b-pawn
+        x-x x-x x-x b-queen
+        x-x x-x x-x x-x x-x x-x w-bishop
+        b-pawn
+        x-x x-x x-x x-x x-x w-king w-rook\n\n To submit input, press Tab followrd by Enter.\n"
+      input = gets("\t\n").chomp.downcase
+
+      puts "INPuT: #{input}"
+
+      input = input.split("\n")
+
+      puts "INPuT: #{input}"
+      
+
+      input.each do |line|
+        puts "ANALYZING LINE #{line}\n"
+        tokenized_input = line.split(' ')
+        piece_input = tokenized_input.map do |token|
+          
+          split_token = token.split('-')
+          if !split_token.empty?
+
             if (split_token.length != 2)
+              puts "Split token length less than 2"
               break
             end
 
-            if split_token[0] != 'b' && split_token[0] != 'w'
+            if split_token[0] != 'b' && split_token[0] != 'w' && split_token[0] != 'x'
+              puts "Split token not right color"
               break
             end
-            color = split_token[0] == 'w' ? 'white' : 'black'
-
-            case split_token[1]
-              when 'pawn'
-                Pawn.new(color)
-              when 'bishop'
-                Bishop.new(color)
-              when 'king'
-                King.new(color)
-              when 'knight'
-                Knight.new(color)
-              when 'queen'
-                Queen.new(color)
-              when 'rook'
-                Rook.new(color)
-              else
-                NilPiece.new('')
-            end
           end
 
-          until piece_input.length == 8
-            piece_input.append(NilPiece.new(''))
+          if split_token[0] == 'w'
+            color = 'white'
+          elsif split_token[0] == 'b'
+            color = 'black'
+          else
+            color = ''
           end
 
-          is_input_valid = true
-          piece_input
+          case split_token[1]
+            when 'pawn'
+              Pawn.new(color)
+            when 'bishop'
+              Bishop.new(color)
+            when 'king'
+              King.new(color)
+            when 'knight'
+              Knight.new(color)
+            when 'queen'
+              Queen.new(color)
+            when 'rook'
+              Rook.new(color)
+            else
+              NilPiece.new('')
+          end
+
         end
+
+        puts "HELLO\n"
+
+        until piece_input.length == 8
+          piece_input.append(NilPiece.new(''))
+        end
+
+        puts "piece_input: #{piece_input}"
 
         custom_board.append(piece_input)
       end
@@ -570,7 +600,7 @@ class Game
     bishops = enemy_pos.select { |pos| get_piece(pos).class == Bishop }
     queen = enemy_pos.select { |pos| get_piece(pos).class == Queen }.first
     knights = enemy_pos.select {|pos| get_piece(pos).class == Knight }
-    pawns = enemy_pos.select {|pos| get_position(pos).class == Pawn }
+    pawns = enemy_pos.select {|pos| get_piece(pos).class == Pawn }
 
     king_pos = @board.board.coordinates(@current_set.select{|piece| piece.class == King}[0])
 
