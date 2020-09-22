@@ -137,7 +137,7 @@ class Board
   def initialize_moves
     (0..7).each do |row|
       (0..7).each do |col|
-        unless @board[row][col].class == NilPiece
+        unless T.must(@board[row])[col].class == NilPiece
           possible_moves([row,col])
         end
       end
