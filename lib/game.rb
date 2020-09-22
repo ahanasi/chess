@@ -1,5 +1,6 @@
 # typed: true
 require "sorbet-runtime"
+require "yaml"
 require_relative "board.rb"
 
 class Array
@@ -23,119 +24,153 @@ class Game
 
   attr_accessor :board, :turn, :capture, :current_move, :current_piece, :current_set, :previous_set, :king_checked, :checked_king_pos, :castle_positions, :promoted_piece
   
-  sig { void }
-  def initialize
-    @board = T.let(Board.new(), Board)
-    @turn = T.let(0, Integer)
-    @capture = T.let(Hash.new { |hsh, key| hsh[key] = [] }, T::Hash[Symbol, T::Array[Piece]])
-    @current_move = T.let([], T::Array[T::Array[Integer]])
-    @current_piece = T.let(NilPiece.new(""), Piece)
-    @current_set = T.let([], T::Array[Piece])
-    @previous_set = T.let([], T::Array[Piece])
-    @king_checked = T.let(false, T::Boolean)
-    @checked_king_pos = T.let([], T::Array[Integer])
-    @castle_positions = T.let([], T::Array[T::Array[Integer]])
-    @promoted_piece = T.let(NilPiece.new(""), Piece)
+  def initialize(board = T.let(Board.new(), Board),
+                turn = T.let(0, Integer),
+                capture = T.let(Hash.new { |hsh, key| hsh[key] = [] }, T::Hash[Symbol, T::Array[Piece]]),
+                current_piece = T.let(NilPiece.new(""), Piece),
+                current_set = T.let([], T::Array[Piece]),
+                previous_set = T.let([], T::Array[Piece]),
+                king_checked = T.let(false, T::Boolean),
+                checked_king_pos = T.let([], T::Array[Integer]),
+                castle_positions = T.let([], T::Array[T::Array[Integer]]),
+                promoted_piece = T.let(NilPiece.new(""), Piece))
+    @board = board
+    @turn = turn
+    @capture = capture
+    @current_move = current_move
+    @current_piece = current_piece
+    @current_set = current_set
+    @previous_set = previous_set
+    @king_checked = king_checked
+    @checked_king_pos = checked_king_pos
+    @castle_positions = castle_positions
+    @promoted_piece = promoted_piece
   end
 
-  class << Game
-    extend T::Sig
-
-    sig { void }
-    def create_board
-      custom_board = T.let([], T::Array[T::Array[Piece]])
-      puts "\nPaste your custom board, with each rank on a newline.\nUse x-x for an empty square between pieces\nUse an empty line to denote an entirely empty rank.\nRanks with less than 8 files are filled with empty-squares"
-      puts "Example\n
-        x-x x-x x-x x-x x-x x-x b-king
+  sig { void }
+  def self.create_board
+    custom_board = T.let([], T::Array[T::Array[Piece]])
+    puts "\nPaste your custom board, with each rank on a newline.\nUse x-x for an empty square between pieces\nUse an empty line to denote an entirely empty rank.\nRanks with less than 8 files are filled with empty-squares"
+    puts "Example\n
+      x-x x-x x-x x-x x-x x-x b-king
 
 
-        x-x x-x x-x x-x b-pawn b-pawn
-        x-x x-x x-x b-queen
-        x-x x-x x-x x-x x-x x-x w-bishop
-        b-pawn
-        x-x x-x x-x x-x x-x w-king w-rook\n\n To submit input, press Tab followrd by Enter.\n"
-      input = gets("\t\n").chomp.downcase
+      x-x x-x x-x x-x b-pawn b-pawn
+      x-x x-x x-x b-queen
+      x-x x-x x-x x-x x-x x-x w-bishop
+      b-pawn
+      x-x x-x x-x x-x x-x w-king w-rook\n\n To submit input, press Tab followed by Enter.\n"
+    input = gets("\t\n").chomp.downcase
+    input = input.split("\n")      
 
-      puts "INPuT: #{input}"
+    input.each do |line|
+      tokenized_input = line.split(' ')
+      piece_input = tokenized_input.map do |token|
+        
+        split_token = token.split('-')
+        if !split_token.empty?
 
-      input = input.split("\n")
-
-      puts "INPuT: #{input}"
-      
-
-      input.each do |line|
-        puts "ANALYZING LINE #{line}\n"
-        tokenized_input = line.split(' ')
-        piece_input = tokenized_input.map do |token|
-          
-          split_token = token.split('-')
-          if !split_token.empty?
-
-            if (split_token.length != 2)
-              puts "Split token length less than 2"
-              break
-            end
-
-            if split_token[0] != 'b' && split_token[0] != 'w' && split_token[0] != 'x'
-              puts "Split token not right color"
-              break
-            end
+          if (split_token.length != 2)
+            break
           end
 
-          if split_token[0] == 'w'
-            color = 'white'
-          elsif split_token[0] == 'b'
-            color = 'black'
+          if split_token[0] != 'b' && split_token[0] != 'w' && split_token[0] != 'x'
+            break
+          end
+        end
+
+        if split_token[0] == 'w'
+          color = 'white'
+        elsif split_token[0] == 'b'
+          color = 'black'
+        else
+          color = ''
+        end
+
+        case split_token[1]
+          when 'pawn'
+            Pawn.new(color)
+          when 'bishop'
+            Bishop.new(color)
+          when 'king'
+            King.new(color)
+          when 'knight'
+            Knight.new(color)
+          when 'queen'
+            Queen.new(color)
+          when 'rook'
+            Rook.new(color)
           else
-            color = ''
-          end
-
-          case split_token[1]
-            when 'pawn'
-              Pawn.new(color)
-            when 'bishop'
-              Bishop.new(color)
-            when 'king'
-              King.new(color)
-            when 'knight'
-              Knight.new(color)
-            when 'queen'
-              Queen.new(color)
-            when 'rook'
-              Rook.new(color)
-            else
-              NilPiece.new('')
-          end
-
+            NilPiece.new('')
         end
-
-        puts "HELLO\n"
-
-        until piece_input.length == 8
-          piece_input.append(NilPiece.new(''))
-        end
-
-        puts "piece_input: #{piece_input}"
-
-        custom_board.append(piece_input)
       end
 
-      puts "Custom board: #{custom_board}"
-      game = Game.new()
-      game.board.board = custom_board
-      game.play_game
+      until T.must(piece_input).length == 8
+        T.must(piece_input).append(NilPiece.new(''))
+      end
+      custom_board.append(T.must(piece_input))
     end
+
+    game = Game.new()
+    game.board.board = custom_board
+    game.play_game
+  end
+
+  def to_yaml
+    YAML.dump ({
+      :board => @board,
+      :turn => @turn,
+      :capture => @capture,
+      :current_move => @current_move,
+      :current_piece => @current_piece,
+      :current_set => @current_set, 
+      :previous_set => @previous_set, 
+      :king_checked => @king_checked, 
+      :checked_king_pos => @checked_king_pos, 
+      :castle_positions => @castle_positions, 
+      :promoted_piece => @promoted_piece
+    })
+  end
+
+  def from_yaml(string)
+    data = YAML.load(string)
+    @board = data[:board]
+    @turn = data[:turn]
+    @capture = data[:capture]
+    @current_move = data[:current_move]
+    @current_piece = data[:current_piece]
+    @current_set = data[:current_set]
+    @previous_set = data[:previous_set]
+    @king_checked = data[:king_checked]
+    @checked_king_pos = data[:checked_king_pos]
+    @castle_positions = data[:castle_positions]
+    @promoted_piece = data[:promoted_piece]
+  end
+
+  def create_user_yml(obj)
+    Dir.mkdir("saves") unless Dir.exist?("saves")
+    puts "Please enter the save file name"
+    file_name = gets.chomp
+    File.open("saves/#{file_name}.yml", "w+") { |file| file.write(obj.to_yaml) }
   end
 
   sig { void }
   def self.driver
     system "clear"
-    puts "Welcome to Chess! Press 'S' to start a new game, or 'N' to start from a custom board.\nPress enter to exit."
+    puts "Welcome to Chess! Press 'S' to start a new game, or 'N' to start from a custom board.\nTo load a saved game, press 'L'.\nPress enter to exit."
     input = gets.chomp.upcase
     if input == "S"
       Game.new().play_game
     elsif input == "N"
       Game.create_board
+    elsif input == "L"
+      puts "Which save file would you like to load? Type in the number."
+      file_list = Dir.entries("saves")
+      file_list.each_with_index {|f,i| puts "#{i+1}. #{f}" unless (f =~ /^..?$/)}
+      file_num = gets.chomp.to_i
+      game = Game.new()
+      game.from_yaml(File.read("saves/#{file_list[file_num-1]}"))
+      game.play_game
     else
       exit
     end
@@ -162,7 +197,7 @@ class Game
     #Turn message
     turn_message()
     puts "(Ex: Type in A3 B4 to move the piece at A3 to B4)"
-    puts "Type in 'C' to Castle"
+    puts "Type in 'C' to Castle or 'S' to save and quit the game."
 
     #Get valid move from user
 
@@ -313,11 +348,13 @@ class Game
   sig { returns(T::Boolean) }
   def en_passant()
     if ep_pawn() && is_trying_to_ep()
-      capture_piece(get_piece([T.must(T.must(@current_move[0])[0]), T.must(T.must(@current_move[1])[1])]))
-      @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = @current_piece
-      @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = NilPiece.new("")
-      @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[1])[1])] = NilPiece.new("")
-      return true
+      if !moving_to_check?()
+        capture_piece(get_piece([T.must(T.must(@current_move[0])[0]), T.must(T.must(@current_move[1])[1])]))
+        @board.board[T.must(T.must(@current_move[1])[0])][T.must(T.must(@current_move[1])[1])] = @current_piece
+        @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[0])[1])] = NilPiece.new("")
+        @board.board[T.must(T.must(@current_move[0])[0])][T.must(T.must(@current_move[1])[1])] = NilPiece.new("")
+        return true
+      end
     end
     return false
   end
@@ -402,7 +439,7 @@ class Game
   def get_user_input
     user_input = gets.chomp.upcase
     #Guard against garbage
-    until user_input.match(/^[a-zA-Z][1-8] [a-zA-Z][1-8]$/) || (user_input.match(/^[cC]$/) && (can_castle?()))
+    until user_input.match(/^[a-zA-Z][1-8] [a-zA-Z][1-8]$/) || (user_input.match(/^[cC]$/) && can_castle?()) || (user_input.match(/^[sS]$/))
       puts "Please move another piece."
       user_input = gets.chomp.upcase
     end
@@ -417,6 +454,9 @@ class Game
     if user_input == "C"
       castle()
       return true
+    elsif user_input == "S"
+      create_user_yml(self)
+      exit
     else
       @current_move = get_position(user_input)
       @current_piece = get_piece(T.must(@current_move[0]))
@@ -497,6 +537,10 @@ class Game
     while @king_checked
       puts "IN CHECK LOOP"
       user_input = get_user_input()
+      if user_input == "S"
+        create_user_yml(self)
+        exit
+      end
       @current_move = get_position(user_input)
       @current_piece = get_piece(T.must(@current_move[0]))
 
