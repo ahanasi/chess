@@ -33,7 +33,7 @@ class Game
                 king_checked = T.let(false, T::Boolean),
                 checked_king_pos = T.let([], T::Array[Integer]),
                 castle_positions = T.let([], T::Array[T::Array[Integer]]),
-                promoted_piece = T.let(NilPiece.new(""), Piece))
+                promoted_piece = T.let(NilPiece.new(""), Piece))    
     @board = board
     @turn = turn
     @capture = capture
@@ -224,7 +224,6 @@ class Game
 
     #Check for CHECK
     @king_checked = true if check()
-
     @turn += 1
   end
 
@@ -233,18 +232,19 @@ class Game
   #  1 -> valid move (proceed with the round)
   sig { returns(Integer) }
   def get_legal_move
+
     puts "IN GET LEGAL MOVE"
     #Is the king in check?
     if @king_checked
       #Check for checkmate
-      if stalemate()
+      if checkmate()
         puts "You have been checkmated!"
         return -1
       end
       puts "You are in check!"
       check_loop()
       return 1
-    elsif stalemate() && @current_set.all? { |piece| piece.moves.empty? }
+    elsif !can_move_king?() && @current_set.all? {|piece| piece.moves.empty?}
       puts "Stalemate! The game is a draw"
       return -1
     else
@@ -271,7 +271,7 @@ class Game
         end
 
         #Check for legal move
-        if @board.can_move?(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())  
+        if @board.can_move?(T.must(@current_move[0]), T.must(@current_move[1]), turn_color())
           if moving_to_check?()
             puts "That move puts your king in check. Please move another piece."
             puts "KING IN CHECK"
@@ -280,6 +280,7 @@ class Game
             return 1
           end               
         end
+        puts "CURRENT MOVE: #{@current_move}"
         puts "MOVE IS NOT POSSIBLE"
         return 0        
       end
@@ -526,7 +527,7 @@ class Game
   end
 
   sig { returns(T::Boolean) }
-  def stalemate
+  def checkmate
     puts "CAN MOVE KING: #{can_move_king?}, CAPTURE_CHECKING_PIECE: #{can_capture_checking_piece?}, BLOCK: #{can_block_checking_piece?}"
     return !can_move_king? && !can_capture_checking_piece? && !can_block_checking_piece?
   end
